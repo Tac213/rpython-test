@@ -1,0 +1,13 @@
+{
+  "configurations": [
+    {
+      "name": "Attach to rpython",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 8142
+      }
+    }
+  ]
+}
