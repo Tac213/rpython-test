@@ -22,5 +22,27 @@
         "kind": "build"
       }
     },
+    {
+      "label": "build jitstandalone",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+      },
+      "args": [
+        "${workspaceFolder}/rpythond.py",
+        "--opt=jit",
+        "${workspaceFolder}/targets/jitstandalone.py",
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/bin",
+        "env": {
+          "PYPY_USESSION_DIR": "${workspaceFolder}/build"
+        }
+      },
+      "group": {
+        "kind": "build"
+      }
+    },
   ]
 }
