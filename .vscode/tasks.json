@@ -59,9 +59,9 @@
         }
       },
       "args": [
-        "${workspaceFolder}/rpythond.py",
-        "--opt=jit",
-        "${workspaceFolder}/targets/jitstandalone.py",
+        "${workspaceFolder}/rpythonext.py",
+        "--debug",
+        "${workspaceFolder}/targets/my_first_cpyext.py",
       ],
       "options": {
         "cwd": "${workspaceFolder}/bin",

@@ -14,7 +14,7 @@ except ImportError:
     machinery = None
     util = None
 try:
-    import imp
+    import imp  # type: ignore
 except ImportError:
     imp = None
 try:
