@@ -7,6 +7,7 @@ from __future__ import print_function, absolute_import, division
 import sys
 import sysconfig
 import os
+import site
 from collections import namedtuple
 try:
     from importlib import machinery, util
@@ -23,6 +24,7 @@ except ImportError:
     TYPE_CHECKING = False
 if TYPE_CHECKING:
     from rpython.translator.tool.cbuild import ExternalCompilationInfo
+    from py._path.local import LocalPath
 
 
 CPythonLibraryInfo = namedtuple("CPythonLibraryInfo", ["libdir", "lib"])
@@ -146,10 +148,38 @@ def get_cpython_eci():
     """
     Get the `ExternalCompilationInfo` of the cpython.
     """
+    import py
     from rpython.tool.runsubprocess import run_subprocess
     from rpython.translator.tool.cbuild import ExternalCompilationInfo
 
     cpython_exe = get_cpython_executable()
+    file_path = _get_this_file_path()
+    status, stdout, stderr = run_subprocess(cpython_exe, [file_path])
+    if status != 0:
+        raise EnvironmentError(stderr)
+    outputs = stdout.splitlines()
+    version_info = CPythonVersionInfo(
+        major=int(outputs[0]),
+        minor=int(outputs[1]),
+        micro=int(outputs[2]),
+        releaselevel=outputs[3],
+        serial=int(outputs[4]),
+    )
+    pre_include_bits = []
+    if version_info < (3, 13):
+        pre_include_bits.append("#define PY_SSIZE_T_CLEAN")
+    eci = ExternalCompilationInfo(
+        pre_include_bits=pre_include_bits,
+        includes=["Python.h"],
+        include_dirs=[py.path.local(outputs[5])],
+        libraries=[outputs[6]],
+        library_dirs=[py.path.local(outputs[7])],
+    )
+    return version_info, eci
+
+
+def _get_this_file_path():
+    # type: () -> str
     file_path = os.path.abspath(__file__)
     if machinery:
         if file_path.endswith(machinery.BYTECODE_SUFFIXES):
@@ -169,32 +199,58 @@ def get_cpython_eci():
                     if flag == imp.PY_SOURCE:
                         file_path = "{}{}".format(os.path.splitext(file_path)[0], suffix)
                         break
-    status, stdout, stderr = run_subprocess(cpython_exe, [file_path])
+    return file_path
+
+
+def get_cpython_site_packages_info():
+    # type: () -> tuple[list[str], LocalPath]
+    import py
+    from rpython.tool.runsubprocess import run_subprocess
+
+    cpython_exe = get_cpython_executable()
+    file_path = _get_this_file_path()
+    status, stdout, stderr = run_subprocess(cpython_exe, [file_path, "--get-site-packages-info"])
     if status != 0:
         raise EnvironmentError(stderr)
+    suffixes = []  # type: list[str]
     outputs = stdout.splitlines()
-    version_info = CPythonVersionInfo(
-        major=int(outputs[0]),
-        minor=int(outputs[1]),
-        micro=int(outputs[2]),
-        releaselevel=outputs[3],
-        serial=int(outputs[4]),
-    )
-    pre_include_bits = []
-    if version_info < (3, 13):
-        pre_include_bits.append("#define PY_SSIZE_T_CLEAN")
-    eci = ExternalCompilationInfo(
-        pre_include_bits=pre_include_bits,
-        includes=["Python.h"],
-        include_dirs=[outputs[5]],
-        libraries=[outputs[6]],
-        library_dirs=[outputs[7]],
-    )
-    return version_info, eci
+    for output in outputs:
+        if "cpython-config-suffixes-end" in output:
+            break
+        suffixes.append(output)
+    return suffixes, py.path.local(outputs[-1])
+
+
+def get_site_packages_dir():
+    # type: () -> str
+    dirs = site.getsitepackages()
+    for candidate in dirs:
+        if candidate.endswith("site-packages"):
+            return candidate
+    raise EnvironmentError("No site-packages can be found.")
+
+
+def get_extension_suffixes():
+    # type: () -> list[str]
+    if machinery:
+        return machinery.EXTENSION_SUFFIXES
+    if imp:
+        suffixes = []  # type: list[str]
+        for suffix, _, flag in imp.get_suffixes():
+            if flag == imp.C_EXTENSION:
+                suffixes.append(suffix)
+        return suffixes
+    raise EnvironmentError("Can't get extension suffixes.")
 
 
 def main():
     # type: () -> int
+    if "--get-site-packages-info" in sys.argv:
+        for suffix in get_extension_suffixes():
+            print(suffix, file=sys.stdout)
+        print("********** cpython-config-suffixes-end **********", file=sys.stdout)
+        print(get_site_packages_dir(), file=sys.stdout)
+        return 0
     print(sys.version_info.major, file=sys.stdout)
     print(sys.version_info.minor, file=sys.stdout)
     print(sys.version_info.micro, file=sys.stdout)

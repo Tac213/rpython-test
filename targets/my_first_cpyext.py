@@ -25,6 +25,6 @@ def substract(a, b):
 def target(driver, args):
     # type: (CPythonExtensionTranslationDriver, list[str]) -> CPythonModuleDef
     return {
-        "add": (add, [int, int]),
-        "substract": (substract, [int, int]),
+        "add": (add, [float, float]),
+        "substract": (substract, [float, float]),
     }

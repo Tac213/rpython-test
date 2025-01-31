@@ -3,7 +3,6 @@
 # contact: cookiezhx@163.com
 
 from __future__ import print_function, absolute_import, division
-import sys
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -11,12 +10,12 @@ except ImportError:
 if TYPE_CHECKING:
     from typing import Optional, Self, Dict, Any
     from rpython.config.config import Config
-    from rpython.translator.c.dlltool import CLibraryBuilder
     from rpython.translator.c.database import LowLevelDatabase
     from rpython_ext.translator.goal.translate import TargetSpecDict, CPythonModuleDef
 
 from rpython.annotator.policy import AnnotatorPolicy
-from rpython.translator.driver import TranslationDriver, TranslationContext, taskdef
+from rpython.translator.driver import TranslationDriver, TranslationContext, taskdef, shutil_copy
+from rpython_ext.translator.c.cpyext_tool import CPythonExtensionBuilder
 
 
 class CPythonExtensionTranslationDriver(TranslationDriver):
@@ -46,7 +45,7 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         self.target_spec_dict = {}  # type: TargetSpecDict
         self.policy = None  # type: Optional[AnnotatorPolicy]
         self.translator = TranslationContext(config=self.config)
-        self.cbuilder = None  # type: Optional[CLibraryBuilder]
+        self.cbuilder = None  # type: Optional[CPythonExtensionBuilder]
         self.database = None  # type: Optional[LowLevelDatabase]
 
     def setup(self, ext_module_def, target_spec_dict, policy=None, empty_translator=None):
@@ -124,8 +123,6 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         """
         Create a database for further backend generation
         """
-        from rpython.translator.c.dlltool import CLibraryBuilder
-
         translator = self.translator
         if translator.annotator is not None:
             translator.frozen = True
@@ -133,19 +130,27 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         get_gchooks = self.target_spec_dict.get("get_gchooks", lambda: None)
         gchooks = get_gchooks()
 
-        functions = self.ext_module_def.values()
-        if sys.version_info.major >= 3:
-            functions = list(functions)
-        cbuilder = CLibraryBuilder(
+        cbuilder = CPythonExtensionBuilder(
             self.translator,
-            None,
             self.config,
+            self.ext_module_def,
             gchooks=gchooks,
             name=self.extmod_name,
-            functions=functions,
         )
         cbuilder.modulename = self.extmod_name
         database = cbuilder.build_database()
         self.log.info("database for generating C source was created")
         self.cbuilder = cbuilder
         self.database = database
+
+    @taskdef(["compile_c"], "Copy the compiled shared libary into CPython's site-packages directory.")
+    def task_create_extension(self):
+        # type: () -> None
+        """
+        Copy the compiled shared libary into CPython's site-packages directory.
+        """
+        assert self.cbuilder is not None
+        extension_path = self.cbuilder.get_entry_point()
+        targetext = self.cbuilder.site_packages_dir.join(extension_path.basename)
+        shutil_copy(str(extension_path), str(targetext))
+        self.log.info("created: {}".format(targetext))

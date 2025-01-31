@@ -297,7 +297,7 @@ def cpython_extension_main():
             args,
             empty_translator=translation_context,
             disable=translateconfig.skipped_goals,
-            default_goal="compile",
+            default_goal="create_extension",
         )
         log_config(translateconfig, "translate.py configuration")
         if config.translation.jit:
@@ -319,12 +319,7 @@ def cpython_extension_main():
             driver.proceed(goals)
         finally:
             driver.timer.pprint()
-    except SystemExit:
-        raise
-    except:
-        finish_profiling()
-        raise SystemExit(1)
-    else:
+    finally:
         finish_profiling()
 
 
