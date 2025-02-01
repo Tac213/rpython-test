@@ -43,7 +43,7 @@ def main():
     if "--jit" in sys.argv:
         cpyext_jit = load_cpyext_jit_extension_module()
     t0 = time.time()
-    cpyext_jit.entry_point(999, 999)
+    cpyext_jit.entry_point(9999, 9999)
     print(time.time() - t0)
     print(cpyext_jit)
     return 0
