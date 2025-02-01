@@ -273,6 +273,8 @@ def cpython_extension_main():
         log.info("Waiting for a debugging client to attach on the process, localhost:8142")
         debugpy.wait_for_client()
 
+    if translateconfig.opt == "jit":
+        assert "jit_entry_point" in target_spec_dict, "You need to define the 'jit_entry_point' if you want to translate your CPython extension with a JIT compiler."
     if translateconfig.profile:
         from cProfile import Profile
         prof = Profile()
@@ -341,6 +343,7 @@ if TYPE_CHECKING:
             "jitpolicy": Callable[[CPythonExtensionTranslationDriver], JitPolicy],
             "get_gchooks": Callable[[], GcHooks],
             "get_llinterp_args": Callable[[], list],
+            "jit_entry_point": str,
         },
         total=False,
     )

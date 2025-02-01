@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from rpython_ext.translator.goal.translate import TargetSpecDict, CPythonModuleDef
 
 from rpython.annotator.policy import AnnotatorPolicy
+from rpython.jit.codewriter.policy import JitPolicy
 from rpython.translator.driver import TranslationDriver, TranslationContext, taskdef, shutil_copy
 from rpython_ext.translator.c.cpyext_tool import CPythonExtensionBuilder
 
@@ -43,6 +44,7 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         )
         self.ext_module_def = {}  # type: CPythonModuleDef
         self.target_spec_dict = {}  # type: TargetSpecDict
+        self.extra = {}  # type: TargetSpecDict
         self.policy = None  # type: Optional[AnnotatorPolicy]
         self.translator = TranslationContext(config=self.config)
         self.cbuilder = None  # type: Optional[CPythonExtensionBuilder]
@@ -53,6 +55,7 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         self.standalone = False
         self.ext_module_def = ext_module_def
         self.target_spec_dict = target_spec_dict
+        self.extra = target_spec_dict
 
         if policy is None:
             policy = AnnotatorPolicy()
@@ -104,6 +107,10 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
 
         for func, input_types in self.ext_module_def.values():
             annotator.build_types(func, input_types, False)
+
+        if "jit_entry_point" in self.target_spec_dict:
+            jit_entry_point = self.target_spec_dict["jit_entry_point"]
+            translator.entry_point_graph = annotator.bookkeeper.getdesc(self.ext_module_def[jit_entry_point][0]).getuniquegraph()
 
         self.sanity_check_annotation()
         annotator.complete()
