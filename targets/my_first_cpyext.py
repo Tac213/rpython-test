@@ -14,17 +14,32 @@ if TYPE_CHECKING:
 
 def add(a, b):
     # type: (float, float) -> float
+    """
+    Add two floating numbers.
+    """
     return a + b
 
 
 def substract(a, b):
     # type: (float, float) -> float
+    """
+    Substract two floating numbers.
+    """
     return a - b
+
+
+def print_int(s):
+    # type: (int) -> None
+    """
+    Print an interger.
+    """
+    print(s)
 
 
 def target(driver, args):
     # type: (CPythonExtensionTranslationDriver, list[str]) -> CPythonModuleDef
     return {
-        "add": (add, [float, float]),
-        "substract": (substract, [float, float]),
+        add.__name__: (add, [float, float]),
+        substract.__name__: (substract, [float, float]),
+        print_int.__name__: (print_int, [int]),
     }
