@@ -9,7 +9,6 @@ run with --help for more information
 
 from __future__ import print_function, absolute_import, division
 import sys, os
-sys.path.insert(0, os.path.normpath(os.path.join(__file__, "..", "pypy")))
 from rpython.translator.goal.translate import main
 
 # no implicit targets

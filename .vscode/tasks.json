@@ -15,7 +15,8 @@
       "options": {
         "cwd": "${workspaceFolder}/bin",
         "env": {
-          "PYPY_USESSION_DIR": "${workspaceFolder}/build"
+          "PYPY_USESSION_DIR": "${workspaceFolder}/build",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
         }
       },
       "group": {
@@ -37,7 +38,8 @@
       "options": {
         "cwd": "${workspaceFolder}/bin",
         "env": {
-          "PYPY_USESSION_DIR": "${workspaceFolder}/build"
+          "PYPY_USESSION_DIR": "${workspaceFolder}/build",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
         }
       },
       "group": {
@@ -54,7 +56,8 @@
           "cwd": "${workspaceFolder}\\bin",
           "env": {
             "PYPY_USESSION_DIR": "${workspaceFolder}\\build",
-            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe"
+            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe",
+            "PYTHONPATH": "${workspaceFolder}\\pypy"
           }
         }
       },
@@ -67,7 +70,8 @@
         "cwd": "${workspaceFolder}/bin",
         "env": {
           "PYPY_USESSION_DIR": "${workspaceFolder}/build",
-          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python"
+          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
         }
       },
       "group": {
@@ -84,7 +88,8 @@
           "cwd": "${workspaceFolder}\\bin",
           "env": {
             "PYPY_USESSION_DIR": "${workspaceFolder}\\build",
-            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe"
+            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe",
+            "PYTHONPATH": "${workspaceFolder}\\pypy"
           }
         }
       },
@@ -97,7 +102,8 @@
         "cwd": "${workspaceFolder}/bin",
         "env": {
           "PYPY_USESSION_DIR": "${workspaceFolder}/build",
-          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python"
+          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
         }
       },
       "group": {
@@ -114,7 +120,8 @@
           "cwd": "${workspaceFolder}\\bin",
           "env": {
             "PYPY_USESSION_DIR": "${workspaceFolder}\\build",
-            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe"
+            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe",
+            "PYTHONPATH": "${workspaceFolder}\\pypy"
           }
         }
       },
@@ -126,7 +133,8 @@
         "cwd": "${workspaceFolder}/bin",
         "env": {
           "PYPY_USESSION_DIR": "${workspaceFolder}/build",
-          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python"
+          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
         }
       },
       "group": {
