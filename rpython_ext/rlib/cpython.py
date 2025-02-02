@@ -6,7 +6,6 @@ from __future__ import print_function, absolute_import, division
 
 from rpython.rtyper.lltypesystem import rffi, lltype
 from rpython.rtyper.tool import rffi_platform
-from rpython.translator.tool.cbuild import ExternalCompilationInfo
 from rpython_ext.tool.cpython_config import get_cpython_eci
 
 _CPYTHON_VERSION_INFO, _ECI = get_cpython_eci()
@@ -513,85 +512,10 @@ config = rffi_platform.configure(_CPyCodeObjectConfig)
 PyCodeObject = config["PyCodeObject"]
 PyCodeObject_P = lltype.Ptr(PyCodeObject)
 
-
-_FRAME_ECI = ExternalCompilationInfo(
-    pre_include_bits=["#ifndef Py_BUILD_CORE", "#define Py_BUILD_CORE", "#endif", "#define PY_SSIZE_T_CLEAN"],
-    includes=["Python.h", "internal/pycore_frame.h"],
-    include_dirs=_ECI.include_dirs,
-    libraries=_ECI.libraries,
-    library_dirs=_ECI.library_dirs,
-)
-
-
-class _CPyFrameObjectConfig:
-    """
-    internal/pycore_frame.h
-    """
-    _compilation_info_ = _FRAME_ECI
-
-    PyFrameObject = rffi_platform.Struct(
-        "PyFrameObject",
-        []
-    )
-    _PyInterpreterFrame = rffi_platform.Struct(
-        "_PyInterpreterFrame",
-        []
-    )
-
-
-config = rffi_platform.configure(_CPyFrameObjectConfig)
-PyFrameObject = config["PyFrameObject"]
-_PyInterpreterFrame = config["_PyInterpreterFrame"]
-
-
-class _CPyFrameObjectConfig:
-    """
-    internal/pycore_frame.h
-    """
-    _compilation_info_ = _FRAME_ECI
-
-    _PyInterpreterFrame = rffi_platform.Struct(
-        "_PyInterpreterFrame",
-        [
-            ("previous", lltype.Ptr(_PyInterpreterFrame)),
-            ("f_funcobj", PyObject_P),
-            ("f_globals", PyObject_P),
-            ("f_builtins", PyObject_P),
-            ("f_locals", PyObject_P),
-            ("frame_obj", lltype.Ptr(PyFrameObject)),
-            ("stacktop", rffi.INT),
-            ("return_offset", rffi.USHORT),
-            ("owner", rffi.CHAR),
-        ]
-    )
-
-
-config = rffi_platform.configure(_CPyFrameObjectConfig)
-_PyInterpreterFrame = config["_PyInterpreterFrame"]
+_PyInterpreterFrame = lltype.Struct("_PyInterpreterFrame", hints={"typedef": False, "external": "C", "c_name": "_PyInterpreterFrame", "eci": _ECI})
 _PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
 
-
-class _CPyFrameObjectConfig:
-    """
-    internal/pycore_frame.h
-    """
-    _compilation_info_ = _FRAME_ECI
-
-    PyFrameObject = rffi_platform.Struct(
-        "PyFrameObject",
-        [
-            ("f_back", lltype.Ptr(PyFrameObject)),
-            ("f_frame", _PyInterpreterFrame_P),
-            ("f_trace", PyObject_P),
-            ("f_lineno", rffi.INT),
-            ("f_trace_lines", rffi.CHAR),
-            ("f_trace_opcodes", rffi.CHAR),
-        ]
-    )
-
-
-config = rffi_platform.configure(_CPyFrameObjectConfig)
-PyFrameObject = config["PyFrameObject"]
+PyFrameObject = lltype.Struct("PyFrameObject", hints={"typedef": True, "external": "C", "c_name": "PyFrameObject", "eci": _ECI})
 PyFrameObject_P = lltype.Ptr(PyFrameObject)
 
 
@@ -658,6 +582,16 @@ PyState_FindModule = rffi.llexternal("PyState_FindModule", [PyModuleDef_P], PyOb
 PyThreadState_Clear = rffi.llexternal("PyThreadState_Clear", [PyThreadState_P], lltype.Void, **_llextkws)
 PyThreadState_Delete = rffi.llexternal("PyThreadState_Delete", [PyThreadState_P], lltype.Void, **_llextkws)
 PyThreadState_Get = rffi.llexternal("PyThreadState_Get", [], PyThreadState_P, **_llextkws)
+
+_PyFrameEvalFunction = lltype.Ptr(lltype.FuncType([PyThreadState_P, _PyInterpreterFrame_P, rffi.INT], PyObject_P))
+
+PyInterpreterState = lltype.Struct("PyInterpreterState", hints={"typedef": True, "external": "C", "c_name": "PyInterpreterState", "eci": _ECI})
+PyInterpreterState_P = lltype.Ptr(PyInterpreterState)
+
+
+PyInterpreterState_Get = rffi.llexternal("PyInterpreterState_Get", [], PyInterpreterState_P, **_llextkws)
+_PyInterpreterState_SetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_SetEvalFrameFunc", [PyInterpreterState_P, _PyFrameEvalFunction], lltype.Void, **_llextkws)
+_PyInterpreterState_GetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_GetEvalFrameFunc", [PyInterpreterState_P], _PyFrameEvalFunction, **_llextkws)
 
 del config
  

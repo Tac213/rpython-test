@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from rpython_ext.translator.goal.translate import TargetSpecDict, CPythonModuleDef
 
 from rpython.annotator.policy import AnnotatorPolicy
-from rpython.jit.codewriter.policy import JitPolicy
 from rpython.translator.driver import TranslationDriver, TranslationContext, taskdef, shutil_copy
 from rpython_ext.translator.c.cpyext_tool import CPythonExtensionBuilder
 

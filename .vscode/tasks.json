@@ -141,5 +141,36 @@
         "kind": "build"
       }
     },
+    {
+      "label": "build cpybooster",
+      "type": "process",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+        "options": {
+          "cwd": "${workspaceFolder}\\bin",
+          "env": {
+            "PYPY_USESSION_DIR": "${workspaceFolder}\\build",
+            "PYTHON_EXECUTABLE": "${workspaceFolder}\\.cpyvenv\\Scripts\\python.exe",
+            "PYTHONPATH": "${workspaceFolder}\\pypy"
+          }
+        }
+      },
+      "args": [
+        "${workspaceFolder}/rpythonext.py",
+        "${workspaceFolder}/targets/cpybooster.py",
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/bin",
+        "env": {
+          "PYPY_USESSION_DIR": "${workspaceFolder}/build",
+          "PYTHON_EXECUTABLE": "${workspaceFolder}/.cpyvenv/bin/python",
+          "PYTHONPATH": "${workspaceFolder}/pypy"
+        }
+      },
+      "group": {
+        "kind": "build"
+      }
+    },
   ]
 }
