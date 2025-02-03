@@ -471,12 +471,22 @@ PyModuleDef = config["PyModuleDef"]
 PyModuleDef_P = lltype.Ptr(PyModuleDef)
 
 
+if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
+    _Py_CODEUNIT = lltype.ForwardReference()
+
+
 class _CPyCodeObjectConfig:
     """
     cpython/code.h
     """
     _compilation_info_ = _ECI
 
+    if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
+        _Py_CODEUNIT = rffi_platform.Struct(
+            "_Py_CODEUNIT",
+            [
+            ]
+        )
     PyCodeObject = rffi_platform.Struct(
         "PyCodeObject",
         [
@@ -513,6 +523,12 @@ class _CPyCodeObjectConfig:
 config = rffi_platform.configure(_CPyCodeObjectConfig)
 PyCodeObject = config["PyCodeObject"]
 PyCodeObject_P = lltype.Ptr(PyCodeObject)
+if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
+    _Py_CODEUNIT.become(config["_Py_CODEUNIT"])
+    _Py_CODEUNIT_P = lltype.Ptr(_Py_CODEUNIT)
+else:
+    _Py_CODEUNIT = lltype.ForwardReference()
+    _Py_CODEUNIT_P = lltype.Ptr(_Py_CODEUNIT)
 
 _PyInterpreterFrame = lltype.ForwardReference()
 _PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
@@ -553,20 +569,49 @@ class _CPyFrameObjectConfig:
         ]
     )
 
-    _PyInterpreterFrame = rffi_platform.Struct(
-        "_PyInterpreterFrame",
-        [
-            ("previous", _PyInterpreterFrame_P),
-            ("f_funcobj", PyObject_P),
-            ("f_globals", PyObject_P),
-            ("f_builtins", PyObject_P),
-            ("f_locals", PyObject_P),
-            ("frame_obj", PyFrameObject_P),
-            ("stacktop", rffi.INT),
-            ("return_offset", rffi.USHORT),
-            ("owner", rffi.CHAR),
-        ]
-    )
+    if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 13:
+        _PyInterpreterFrame = rffi_platform.Struct(
+            "_PyInterpreterFrame",
+            [
+                ("f_executable", PyObject_P),  # Strong reference (code object or None)
+                ("previous", _PyInterpreterFrame_P),
+                ("f_funcobj", PyObject_P),  # Strong reference. Only valid if not on C stack
+                ("f_globals", PyObject_P),  # Borrowed reference. Only valid if not on C stack
+                ("f_builtins", PyObject_P),  # Borrowed reference. Only valid if not on C stack
+                ("f_locals", PyObject_P),  # Strong reference, may be NULL. Only valid if not on C stack
+                ("frame_obj", PyFrameObject_P),  # Strong reference, may be NULL. Only valid if not on C stack
+                ("instr_ptr", _Py_CODEUNIT_P),  # Instruction currently executing (or about to begin)
+                ("stacktop", rffi.INT),  # Offset of TOS from localsplus
+                ("return_offset", rffi.USHORT),  # Only relevant during a function call
+                ("owner", rffi.CHAR),
+            ]
+        )
+
+        FRAME_OWNED_BY_THREAD = rffi_platform.ConstantInteger("FRAME_OWNED_BY_THREAD")
+        FRAME_OWNED_BY_GENERATOR = rffi_platform.ConstantInteger("FRAME_OWNED_BY_GENERATOR")
+        FRAME_OWNED_BY_FRAME_OBJECT = rffi_platform.ConstantInteger("FRAME_OWNED_BY_FRAME_OBJECT")
+        FRAME_OWNED_BY_CSTACK = rffi_platform.ConstantInteger("FRAME_OWNED_BY_CSTACK")
+        # internal/pycore_code.h
+        _Py_CODEUNIT = rffi_platform.Struct(
+            "_Py_CODEUNIT",
+            [
+            ]
+        )
+    elif PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
+        _PyInterpreterFrame = rffi_platform.Struct(
+            "_PyInterpreterFrame",
+            [
+                ("previous", _PyInterpreterFrame_P),
+                ("f_funcobj", PyObject_P),
+                ("f_globals", PyObject_P),
+                ("f_builtins", PyObject_P),
+                ("f_locals", PyObject_P),
+                ("frame_obj", PyFrameObject_P),
+                ("stacktop", rffi.INT),
+                ("return_offset", rffi.USHORT),
+                ("owner", rffi.CHAR),
+            ]
+        )
 
 
 config = rffi_platform.configure(_CPyFrameObjectConfig)
@@ -574,6 +619,13 @@ _PyInterpreterFrame.become(config["_PyInterpreterFrame"])
 _PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
 PyFrameObject.become(config["PyFrameObject"])
 PyFrameObject_P = lltype.Ptr(PyFrameObject)
+if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 13:
+    _Py_CODEUNIT.become(config["_Py_CODEUNIT"])
+    _Py_CODEUNIT_P = lltype.Ptr(_Py_CODEUNIT)
+    FRAME_OWNED_BY_THREAD = config["FRAME_OWNED_BY_THREAD"]
+    FRAME_OWNED_BY_GENERATOR = config["FRAME_OWNED_BY_GENERATOR"]
+    FRAME_OWNED_BY_FRAME_OBJECT = config["FRAME_OWNED_BY_FRAME_OBJECT"]
+    FRAME_OWNED_BY_CSTACK = config["FRAME_OWNED_BY_CSTACK"]
 
 
 class _CPyThreadStateConfig:
@@ -595,6 +647,9 @@ PyThreadState = config["PyThreadState"]
 # cpython/pystate.h
 Py_tracefunc = lltype.Ptr(lltype.FuncType([PyObject_P, PyFrameObject_P, rffi.INT, PyObject_P], rffi.INT))
 
+PyInterpreterState = lltype.Struct("PyInterpreterState", hints={"typedef": True, "external": "C", "c_name": "PyInterpreterState", "eci": _ECI})
+PyInterpreterState_P = lltype.Ptr(PyInterpreterState)
+
 
 class _CPyThreadStateConfig:
     """
@@ -602,30 +657,61 @@ class _CPyThreadStateConfig:
     """
     _compilation_info_ = _ECI
 
-    PyThreadState = rffi_platform.Struct(
-        "PyThreadState",
-        [
-            ("prev", lltype.Ptr(PyThreadState)),
-            ("next", lltype.Ptr(PyThreadState)),
+    if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 13:
+        PyThreadState = rffi_platform.Struct(
+            "PyThreadState",
+            [
+                ("prev", lltype.Ptr(PyThreadState)),
+                ("next", lltype.Ptr(PyThreadState)),
+                ("interp", PyInterpreterState_P),
 
-            ("py_recursion_remaining", rffi.INT),
-            ("py_recursion_limit", rffi.INT),
+                ("state", rffi.INT),
 
-            ("c_recursion_remaining", rffi.INT),
-            ("recursion_headroom", rffi.INT),
+                ("py_recursion_remaining", rffi.INT),
+                ("py_recursion_limit", rffi.INT),
 
-            ("tracing", rffi.INT),
-            ("what_event", rffi.INT),
+                ("c_recursion_remaining", rffi.INT),
+                ("recursion_headroom", rffi.INT),
 
-            ("c_profilefunc", Py_tracefunc),
-            ("c_tracefunc", Py_tracefunc),
+                ("tracing", rffi.INT),
+                ("what_event", rffi.INT),
 
-            ("c_profileobj", PyObject_P),
-            ("c_traceobj", PyObject_P),
+                ("c_profilefunc", Py_tracefunc),
+                ("c_tracefunc", Py_tracefunc),
 
-            ("current_exception", PyObject_P),
-        ]
-    )
+                ("current_frame", _PyInterpreterFrame_P),
+
+                ("c_profileobj", PyObject_P),
+                ("c_traceobj", PyObject_P),
+
+                ("current_exception", PyObject_P),
+            ]
+        )
+    elif PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
+        PyThreadState = rffi_platform.Struct(
+            "PyThreadState",
+            [
+                ("prev", lltype.Ptr(PyThreadState)),
+                ("next", lltype.Ptr(PyThreadState)),
+
+                ("py_recursion_remaining", rffi.INT),
+                ("py_recursion_limit", rffi.INT),
+
+                ("c_recursion_remaining", rffi.INT),
+                ("recursion_headroom", rffi.INT),
+
+                ("tracing", rffi.INT),
+                ("what_event", rffi.INT),
+
+                ("c_profilefunc", Py_tracefunc),
+                ("c_tracefunc", Py_tracefunc),
+
+                ("c_profileobj", PyObject_P),
+                ("c_traceobj", PyObject_P),
+
+                ("current_exception", PyObject_P),
+            ]
+        )
 
 
 config = rffi_platform.configure(_CPyThreadStateConfig)
@@ -641,9 +727,6 @@ PyThreadState_Delete = rffi.llexternal("PyThreadState_Delete", [PyThreadState_P]
 PyThreadState_Get = rffi.llexternal("PyThreadState_Get", [], PyThreadState_P, **_llextkws)
 
 _PyFrameEvalFunction = lltype.Ptr(lltype.FuncType([PyThreadState_P, _PyInterpreterFrame_P, rffi.INT], PyObject_P))
-
-PyInterpreterState = lltype.Struct("PyInterpreterState", hints={"typedef": True, "external": "C", "c_name": "PyInterpreterState", "eci": _ECI})
-PyInterpreterState_P = lltype.Ptr(PyInterpreterState)
 
 
 PyInterpreterState_Get = rffi.llexternal("PyInterpreterState_Get", [], PyInterpreterState_P, **_llextkws)

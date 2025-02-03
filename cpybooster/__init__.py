@@ -3,13 +3,13 @@
 # contact: cookiezhx@163.com
 """
 Entry point of the `cpybooster` module.
+https://peps.python.org/pep-0523/
 """
 
 from __future__ import print_function, absolute_import, division
 
-from rpython.rlib.rarithmetic import r_int32
 from rpython_ext.rlib import cpython
-
-
-def cpybooster_eval_frame(tstate, frame, throwflag):
-    return cpython.PyLong_FromLong(r_int32(0))
+if cpython.PY_MAJOR_VERSION == 3 and cpython.PY_MINOR_VERSION == 13:
+    from cpybooster.cpython313 import eval_frame as cpybooster_eval_frame
+else:
+    assert False, "Unsupported python version: {}.{}.{}".format(cpython.PY_MAJOR_VERSION, cpython.PY_MINOR_VERSION, cpython.PY_MICRO_VERSION)
