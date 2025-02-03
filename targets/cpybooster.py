@@ -19,7 +19,8 @@ except ImportError:
     TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from rpython_ext.translator.driver import CPythonExtensionTranslationDriver, CPythonModuleDef
+    import types
+    from rpython_ext.translator.driver import CPythonExtensionTranslationDriver
 
 # We need to import cpybooster manually since the current file and the implementaion module have duplicate names.
 _CPYBOOSTER_FILE = os.path.normpath(os.path.join(__file__, "..", "..", "cpybooster", "__init__.py"))
@@ -42,11 +43,8 @@ del _CPYBOOSTER_FILE
 
 
 def target(driver, args):
-    # type: (CPythonExtensionTranslationDriver, list[str]) -> CPythonModuleDef
-    return {
-        cpybooster.boost.__name__: (cpybooster.boost, []),
-        cpybooster.unboost.__name__: (cpybooster.unboost, []),
-    }
+    # type: (CPythonExtensionTranslationDriver, list[str]) -> types.FunctionType
+    return cpybooster.cpybooster_eval_frame
 
 
-jit_entry_point = cpybooster.boost.__name__
+jit_entry_point = cpybooster.cpybooster_eval_frame

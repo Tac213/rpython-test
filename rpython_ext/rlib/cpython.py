@@ -4,12 +4,14 @@
 
 from __future__ import print_function, absolute_import, division
 
+from rpython.translator.tool.cbuild import ExternalCompilationInfo
 from rpython.rtyper.lltypesystem import rffi, lltype
 from rpython.rtyper.tool import rffi_platform
 from rpython_ext.tool.cpython_config import get_cpython_eci
 
 _CPYTHON_VERSION_INFO, _ECI = get_cpython_eci()
 _llextkws = {"compilation_info": _ECI, "_nowrapper": True}
+
 
 class _CPyBasicConfig:
     """
@@ -512,10 +514,65 @@ config = rffi_platform.configure(_CPyCodeObjectConfig)
 PyCodeObject = config["PyCodeObject"]
 PyCodeObject_P = lltype.Ptr(PyCodeObject)
 
-_PyInterpreterFrame = lltype.Struct("_PyInterpreterFrame", hints={"typedef": False, "external": "C", "c_name": "_PyInterpreterFrame", "eci": _ECI})
+_PyInterpreterFrame = lltype.ForwardReference()
 _PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
+PyFrameObject = lltype.ForwardReference()
+PyFrameObject_P = lltype.Ptr(PyFrameObject)
 
-PyFrameObject = lltype.Struct("PyFrameObject", hints={"typedef": True, "external": "C", "c_name": "PyFrameObject", "eci": _ECI})
+_FRAME_ECI = ExternalCompilationInfo(
+    pre_include_bits=_ECI.pre_include_bits,
+    post_include_bits=[
+        "#ifndef Py_BUILD_CORE",
+        "#define Py_BUILD_CORE",
+        "#endif",
+        "#include <internal/pycore_frame.h>",
+        "#undef Py_BUILD_CORE",
+    ],
+    includes=_ECI.includes,
+    include_dirs=_ECI.include_dirs,
+    libraries=_ECI.libraries,
+    library_dirs=_ECI.library_dirs,
+)
+
+
+class _CPyFrameObjectConfig:
+    """
+    internal/pycore_frame.h
+    """
+    _compilation_info_ = _FRAME_ECI
+
+    PyFrameObject = rffi_platform.Struct(
+        "PyFrameObject",
+        [
+            ("f_back", PyFrameObject_P),
+            ("f_frame", _PyInterpreterFrame_P),
+            ("f_trace", PyObject_P),
+            ("f_lineno", rffi.INT),
+            ("f_trace_lines", rffi.CHAR),
+            ("f_trace_opcodes", rffi.CHAR),
+        ]
+    )
+
+    _PyInterpreterFrame = rffi_platform.Struct(
+        "_PyInterpreterFrame",
+        [
+            ("previous", _PyInterpreterFrame_P),
+            ("f_funcobj", PyObject_P),
+            ("f_globals", PyObject_P),
+            ("f_builtins", PyObject_P),
+            ("f_locals", PyObject_P),
+            ("frame_obj", PyFrameObject_P),
+            ("stacktop", rffi.INT),
+            ("return_offset", rffi.USHORT),
+            ("owner", rffi.CHAR),
+        ]
+    )
+
+
+config = rffi_platform.configure(_CPyFrameObjectConfig)
+_PyInterpreterFrame.become(config["_PyInterpreterFrame"])
+_PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
+PyFrameObject.become(config["PyFrameObject"])
 PyFrameObject_P = lltype.Ptr(PyFrameObject)
 
 
@@ -592,6 +649,10 @@ PyInterpreterState_P = lltype.Ptr(PyInterpreterState)
 PyInterpreterState_Get = rffi.llexternal("PyInterpreterState_Get", [], PyInterpreterState_P, **_llextkws)
 _PyInterpreterState_SetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_SetEvalFrameFunc", [PyInterpreterState_P, _PyFrameEvalFunction], lltype.Void, **_llextkws)
 _PyInterpreterState_GetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_GetEvalFrameFunc", [PyInterpreterState_P], _PyFrameEvalFunction, **_llextkws)
+
+# Functions in: longobject.h
+PyLong_FromLong = rffi.llexternal("PyLong_FromLong", [rffi.LONG], PyObject_P, **_llextkws)
+PyLong_AsLong = rffi.llexternal("PyLong_AsLong", [PyObject_P], rffi.LONG, **_llextkws)
 
 del config
  

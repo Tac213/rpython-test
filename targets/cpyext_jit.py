@@ -65,4 +65,4 @@ def target(driver, args):
     }
 
 
-jit_entry_point = entry_point.__name__
+jit_entry_point = entry_point

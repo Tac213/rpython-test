@@ -21,6 +21,7 @@ except ImportError:
     TYPE_CHECKING = False
 if TYPE_CHECKING:
     from typing import TypedDict, Callable, Union, TypeVar, ParamSpec
+    import types
     from rpython.annotator.policy import AnnotatorPolicy
     from rpython.jit.codewriter.policy import JitPolicy
     from rpython.memory.gc.hook import GcHooks
@@ -336,14 +337,14 @@ if TYPE_CHECKING:
         "TargetSpecDcit",
         {
             "__name__": str,
-            "target": Callable[[CPythonExtensionTranslationDriver, list[str]], Union[CPythonModuleDef, tuple[CPythonModuleDef, AnnotatorPolicy]]],
+            "target": Callable[[CPythonExtensionTranslationDriver, list[str]], Union[CPythonModuleDef, tuple[CPythonModuleDef, AnnotatorPolicy], types.FunctionType]],
             "take_options": bool,
             "get_additional_config_options": Callable[[], OptionDescription],
             "handle_config": Callable[[Config, Config], None],
             "jitpolicy": Callable[[CPythonExtensionTranslationDriver], JitPolicy],
             "get_gchooks": Callable[[], GcHooks],
             "get_llinterp_args": Callable[[], list],
-            "jit_entry_point": str,
+            "jit_entry_point": types.FunctionType,
         },
         total=False,
     )

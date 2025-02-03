@@ -3,6 +3,7 @@
 # contact: cookiezhx@163.com
 
 from __future__ import print_function, absolute_import, division
+import types
 try:
     from typing import TYPE_CHECKING
 except ImportError:
@@ -14,7 +15,9 @@ if TYPE_CHECKING:
     from rpython_ext.translator.goal.translate import TargetSpecDict, CPythonModuleDef
 
 from rpython.annotator.policy import AnnotatorPolicy
+from rpython.rtyper.lltypesystem import rffi
 from rpython.translator.driver import TranslationDriver, TranslationContext, taskdef, shutil_copy
+from rpython_ext.rlib import cpython
 from rpython_ext.translator.c.cpyext_tool import CPythonExtensionBuilder
 
 
@@ -44,17 +47,19 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         self.ext_module_def = {}  # type: CPythonModuleDef
         self.target_spec_dict = {}  # type: TargetSpecDict
         self.extra = {}  # type: TargetSpecDict
+        self.eval_frame_func = None  # type: Optional[types.FunctionType]
         self.policy = None  # type: Optional[AnnotatorPolicy]
         self.translator = TranslationContext(config=self.config)
         self.cbuilder = None  # type: Optional[CPythonExtensionBuilder]
         self.database = None  # type: Optional[LowLevelDatabase]
 
-    def setup(self, ext_module_def, target_spec_dict, policy=None, empty_translator=None):
-        # type: (CPythonModuleDef, TargetSpecDict, Optional[AnnotatorPolicy], Optional[TranslationContext]) -> None
+    def setup(self, ext_module_def, target_spec_dict, eval_frame_func=None, policy=None, empty_translator=None):
+        # type: (CPythonModuleDef, TargetSpecDict, Optional[types.FunctionType], Optional[AnnotatorPolicy], Optional[TranslationContext]) -> None
         self.standalone = False
         self.ext_module_def = ext_module_def
         self.target_spec_dict = target_spec_dict
         self.extra = target_spec_dict
+        self.eval_frame_func = eval_frame_func
 
         if policy is None:
             policy = AnnotatorPolicy()
@@ -84,12 +89,24 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
         spec = target(driver, args)
         if isinstance(spec, tuple):
             ext_module_def, policy = spec
+            eval_frame_func = None
+        elif isinstance(spec, types.FunctionType):
+            ext_module_def = {}  # type: CPythonModuleDef
+            policy = None
+            eval_frame_func = spec
         else:
             ext_module_def = spec
             policy = None
+            eval_frame_func = None
         driver.timer.end_event("loading target")
 
-        driver.setup(ext_module_def, target_spec_dict, policy=policy, empty_translator=empty_translator)
+        driver.setup(
+            ext_module_def,
+            target_spec_dict,
+            eval_frame_func=eval_frame_func,
+            policy=policy,
+            empty_translator=empty_translator,
+        )
         return driver
 
     @taskdef([], "Annotating&simplifying")
@@ -106,10 +123,12 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
 
         for func, input_types in self.ext_module_def.values():
             annotator.build_types(func, input_types, False)
+        if self.eval_frame_func:
+            annotator.build_types(self.eval_frame_func, [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, rffi.INT], False)
 
         if "jit_entry_point" in self.target_spec_dict:
             jit_entry_point = self.target_spec_dict["jit_entry_point"]
-            translator.entry_point_graph = annotator.bookkeeper.getdesc(self.ext_module_def[jit_entry_point][0]).getuniquegraph()
+            translator.entry_point_graph = annotator.bookkeeper.getdesc(jit_entry_point).getuniquegraph()
 
         self.sanity_check_annotation()
         annotator.complete()
@@ -140,6 +159,7 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
             self.translator,
             self.config,
             self.ext_module_def,
+            eval_frame_func=self.eval_frame_func,
             gchooks=gchooks,
             name=self.extmod_name,
         )
