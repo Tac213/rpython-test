@@ -471,6 +471,7 @@ PyModuleDef = config["PyModuleDef"]
 PyModuleDef_P = lltype.Ptr(PyModuleDef)
 
 
+_Py_CODEUNIT__InnerStruct = rffi.CStruct("", ("code", rffi.UCHAR), ("arg", rffi.UCHAR), hints={"typedef": False, "external": "C", "c_name": "", "eci": _ECI, "size": 2})
 if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
     _Py_CODEUNIT = lltype.ForwardReference()
 
@@ -595,6 +596,7 @@ class _CPyFrameObjectConfig:
         _Py_CODEUNIT = rffi_platform.Struct(
             "_Py_CODEUNIT",
             [
+                ("op", _Py_CODEUNIT__InnerStruct),
             ]
         )
     elif PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
@@ -621,6 +623,7 @@ PyFrameObject.become(config["PyFrameObject"])
 PyFrameObject_P = lltype.Ptr(PyFrameObject)
 if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 13:
     _Py_CODEUNIT.become(config["_Py_CODEUNIT"])
+    _Py_CODEUNIT._hints["union"] = True
     _Py_CODEUNIT_P = lltype.Ptr(_Py_CODEUNIT)
     FRAME_OWNED_BY_THREAD = config["FRAME_OWNED_BY_THREAD"]
     FRAME_OWNED_BY_GENERATOR = config["FRAME_OWNED_BY_GENERATOR"]
@@ -647,7 +650,7 @@ PyThreadState = config["PyThreadState"]
 # cpython/pystate.h
 Py_tracefunc = lltype.Ptr(lltype.FuncType([PyObject_P, PyFrameObject_P, rffi.INT, PyObject_P], rffi.INT))
 
-PyInterpreterState = lltype.Struct("PyInterpreterState", hints={"typedef": True, "external": "C", "c_name": "PyInterpreterState", "eci": _ECI})
+PyInterpreterState = rffi.CStruct("PyInterpreterState", hints={"typedef": True, "external": "C", "c_name": "PyInterpreterState", "eci": _ECI})
 PyInterpreterState_P = lltype.Ptr(PyInterpreterState)
 
 
