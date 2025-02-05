@@ -6,11 +6,9 @@
     "**/__pycache__": true,
     "**/*.pyc": true
   },
-  "python.analysis.extraPaths": [
-    "pypy",
-  ],
+  "python.analysis.extraPaths": ["pypy"],
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
-  },
+  }
 }
