@@ -7,6 +7,7 @@ from __future__ import print_function, absolute_import, division
 from rpython.translator.tool.cbuild import ExternalCompilationInfo
 from rpython.rtyper.lltypesystem import rffi, lltype
 from rpython.rtyper.tool import rffi_platform
+from rpython_ext.rlib import rdtoa  # Keep it to replace pypy's dtoa
 from rpython_ext.tool.cpython_config import get_cpython_eci
 
 _CPYTHON_VERSION_INFO, _ECI = get_cpython_eci()
@@ -539,11 +540,13 @@ PyFrameObject_P = lltype.Ptr(PyFrameObject)
 _FRAME_ECI = ExternalCompilationInfo(
     pre_include_bits=_ECI.pre_include_bits,
     post_include_bits=[
-        "#ifndef Py_BUILD_CORE",
-        "#define Py_BUILD_CORE",
-        "#endif",
-        "#include <internal/pycore_frame.h>",
-        "#undef Py_BUILD_CORE",
+        "#ifndef Py_BUILD_CORE  // {}".format(__file__),
+        "#define Py_BUILD_CORE  // {}".format(__file__),
+        "#endif  // {}.{}".format(__file__, 0),
+        "#include <internal/pycore_frame.h>  // {}".format(__file__),
+        "#ifdef Py_BUILD_CORE  // {}".format(__file__),
+        "#undef Py_BUILD_CORE  // {}".format(__file__),
+        "#endif  // {}.{}".format(__file__, 1),
     ],
     includes=_ECI.includes,
     include_dirs=_ECI.include_dirs,

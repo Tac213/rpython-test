@@ -6,6 +6,7 @@ from __future__ import print_function, absolute_import, division
 
 from rpython.rlib.rarithmetic import r_int32
 from rpython.rtyper.lltypesystem import lltype, rffi
+from rpython.rtyper.lltypesystem.lloperation import llop
 from rpython.translator.tool.cbuild import ExternalCompilationInfo
 
 from rpython_ext.rlib.rarithmetic import r_int8, r_uint16
@@ -35,7 +36,15 @@ const _Py_CODEUNIT _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS[5] = {
 
 GLOBAL_ECI = ExternalCompilationInfo(
     post_include_bits=[
-        "static const _Py_CODEUNIT _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS[5];"
+        "static const _Py_CODEUNIT _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS[5];",
+        "#ifndef Py_BUILD_CORE  // {}".format(__file__),
+        "#define Py_BUILD_CORE  // {}".format(__file__),
+        "#endif  // {}.{}".format(__file__, 0),
+        "#include <internal/pycore_ceval.h>  // {}".format(__file__),
+        "#ifdef Py_BUILD_CORE  // {}".format(__file__),
+        "#undef Py_BUILD_CORE  // {}".format(__file__),
+        "#endif  // {}.{}".format(__file__, 1),
+        "#define EMPTY_CONST_CHARP \"\"",
     ],
     separate_module_sources=[_EXTRA_C_SOURCE],
 )
@@ -45,6 +54,9 @@ _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS = rffi.CConstant(
     rffi.CArrayPtr(cpython._Py_CODEUNIT),
 )
 
+_Py_EnterRecursiveCallTstate = rffi.llexternal("_Py_EnterRecursiveCallTstate", [cpython.PyThreadState_P, rffi.CONST_CCHARP], lltype.Bool, **cpython._llextkws)
+
+EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
 PY_EVAL_C_STACK_UNITS = 2
 
 
@@ -59,7 +71,11 @@ def eval_frame(tstate, frame, throwflag):
     entry_frame.c_previous = tstate.c_current_frame
     frame.c_previous = entry_frame
     tstate.c_current_frame = frame
+
     tstate.c_c_recursion_remaining = r_int32(PY_EVAL_C_STACK_UNITS - 1)
+    if _Py_EnterRecursiveCallTstate(tstate, EMPTY_CONST_CHARP):
+        tstate.c_c_recursion_remaining = llop.int_sub(rffi.INT, tstate.c_c_recursion_remaining, 1)
+        tstate.c_py_recursion_remaining = llop.int_sub(rffi.INT, tstate.c_py_recursion_remaining, 1)
 
     lltype.free(entry_frame, flavor="raw", track_allocation=False)
     return cpython.PyLong_FromLong(r_int32(0))

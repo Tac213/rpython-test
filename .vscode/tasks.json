@@ -158,6 +158,7 @@
       },
       "args": [
         "${workspaceFolder}/rpythonext.py",
+        // "--debug",
         "${workspaceFolder}/targets/cpybooster.py"
       ],
       "options": {
