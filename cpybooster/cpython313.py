@@ -16,6 +16,7 @@ PY_EVAL_C_STACK_UNITS = 2
 
 def eval_frame(tstate, frame, throwflag):
     entry_frame = lltype.malloc(cpython._PyInterpreterFrame, flavor="raw", track_allocation=False)
+    entry_frame.c_f_executable = cpython.Py_None
     # f_executable
     # instr_ptr
     entry_frame.c_stacktop = r_int32(0)

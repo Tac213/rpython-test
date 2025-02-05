@@ -737,5 +737,11 @@ _PyInterpreterState_GetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_GetE
 PyLong_FromLong = rffi.llexternal("PyLong_FromLong", [rffi.LONG], PyObject_P, **_llextkws)
 PyLong_AsLong = rffi.llexternal("PyLong_AsLong", [PyObject_P], rffi.LONG, **_llextkws)
 
+# Contants defined in object.h
+Py_None = rffi.CConstant("Py_None", PyObject_P)
+# Contants defined in boolobject.h
+Py_True = rffi.CConstant("Py_True", PyObject_P)
+Py_False = rffi.CConstant("Py_False", PyObject_P)
+
 del config
  
