@@ -48,3 +48,4 @@ def target(driver, args):
 
 
 jit_entry_point = cpybooster.cpybooster_eval_frame
+extra_eci = cpybooster.GLOBAL_ECI

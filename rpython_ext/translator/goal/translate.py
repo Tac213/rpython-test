@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from rpython.annotator.policy import AnnotatorPolicy
     from rpython.jit.codewriter.policy import JitPolicy
     from rpython.memory.gc.hook import GcHooks
+    from rpython.translator.tool.cbuild import ExternalCompilationInfo
 
 from rpython.config.config import (
     to_optparse,
@@ -345,6 +346,7 @@ if TYPE_CHECKING:
             "get_gchooks": Callable[[], GcHooks],
             "get_llinterp_args": Callable[[], list],
             "jit_entry_point": types.FunctionType,
+            "extra_eci": ExternalCompilationInfo,
         },
         total=False,
     )

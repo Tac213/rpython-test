@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from py._path.local import LocalPath
     from rpython.translator.driver import TranslationContext
     from rpython.translator.c.database import LowLevelDatabase
+    from rpython.translator.tool.cbuild import ExternalCompilationInfo
     from rpython.config.config import Config
     from rpython.memory.gc.hook import GcHooks
     from rpython.rtyper.lltypesystem.lltype import _ptr
@@ -51,11 +52,12 @@ class CPythonExtensionBuilder(CBuilder):
     standalone = False
     split = True
 
-    def __init__(self, translator, config, module_def, eval_frame_func=None, gchooks=None, name=None):
-        # type: (TranslationContext, Config, CPythonModuleDef, Optional[types.FunctionType], Optional[GcHooks], Optional[str]) -> None
+    def __init__(self, translator, config, module_def, eval_frame_func=None, extra_eci=None, gchooks=None, name=None):
+        # type: (TranslationContext, Config, CPythonModuleDef, Optional[types.FunctionType], Optional[ExternalCompilationInfo], Optional[GcHooks], Optional[str]) -> None
         super(CPythonExtensionBuilder, self).__init__(translator, None, config, gchooks=gchooks)
         self.ext_module_def = module_def
         self.eval_frame_func = eval_frame_func
+        self.extra_eci = extra_eci
         self.name = name
         self.so_name = py.path.local("")  # type: LocalPath
         version_info, eci = get_cpython_eci()
@@ -104,6 +106,12 @@ class CPythonExtensionBuilder(CBuilder):
     def get_entry_point(self):
         # type: () -> LocalPath
         return self.so_name
+
+    def collect_compilation_info(self, db):
+        # type: (LowLevelDatabase) -> None
+        super(CPythonExtensionBuilder, self).collect_compilation_info(db)
+        if self.extra_eci:
+            self.eci = self.eci.merge(self.extra_eci)
 
     def generate_source(self, db, defines=None, exe_name=None):
         # type: (LowLevelDatabase, Optional[dict[str, int]], Optional[str]) -> LocalPath

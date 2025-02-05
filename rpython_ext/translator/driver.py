@@ -160,6 +160,7 @@ class CPythonExtensionTranslationDriver(TranslationDriver):
             self.config,
             self.ext_module_def,
             eval_frame_func=self.eval_frame_func,
+            extra_eci=self.target_spec_dict.get("extra_eci", None),
             gchooks=gchooks,
             name=self.extmod_name,
         )
