@@ -94,6 +94,9 @@ config = rffi_platform.configure(_CPyObjectConfig)
 PyObject = config["PyObject"]
 PyObject_P = lltype.Ptr(PyObject)
 
+Py_INCREF = rffi.llexternal("Py_INCREF", [PyObject_P], lltype.Void, **_llextkws)
+Py_DECREF = rffi.llexternal("Py_DECREF", [PyObject_P], lltype.Void, **_llextkws)
+
 # object.h
 unaryfunc = lltype.Ptr(lltype.FuncType([PyObject_P], PyObject_P))
 binaryfunc = lltype.Ptr(lltype.FuncType([PyObject_P, PyObject_P], PyObject_P))
@@ -731,6 +734,7 @@ PyState_FindModule = rffi.llexternal("PyState_FindModule", [PyModuleDef_P], PyOb
 PyThreadState_Clear = rffi.llexternal("PyThreadState_Clear", [PyThreadState_P], lltype.Void, **_llextkws)
 PyThreadState_Delete = rffi.llexternal("PyThreadState_Delete", [PyThreadState_P], lltype.Void, **_llextkws)
 PyThreadState_Get = rffi.llexternal("PyThreadState_Get", [], PyThreadState_P, **_llextkws)
+_PyThreadState_PopFrame = rffi.llexternal("_PyThreadState_PopFrame", [PyThreadState_P, _PyInterpreterFrame_P], lltype.Void, **_llextkws)
 
 _PyFrameEvalFunction = lltype.Ptr(lltype.FuncType([PyThreadState_P, _PyInterpreterFrame_P, rffi.INT], PyObject_P))
 

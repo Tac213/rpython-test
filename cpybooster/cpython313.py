@@ -5,6 +5,7 @@
 from __future__ import print_function, absolute_import, division
 
 from rpython.rlib.rarithmetic import r_int32
+from rpython.rtyper.debug import ll_assert, ll_assert_not_none
 from rpython.rtyper.lltypesystem import lltype, rffi
 from rpython.rtyper.lltypesystem.lloperation import llop
 from rpython.translator.tool.cbuild import ExternalCompilationInfo
@@ -54,6 +55,7 @@ _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS = rffi.CConstant(
     rffi.CArrayPtr(cpython._Py_CODEUNIT),
 )
 
+_Py_EnsureTstateNotNULL = rffi.llexternal("_Py_EnsureTstateNotNULL", [cpython.PyThreadState_P], lltype.Void, **cpython._llextkws)
 _Py_EnterRecursiveCallTstate = rffi.llexternal("_Py_EnterRecursiveCallTstate", [cpython.PyThreadState_P, rffi.CONST_CCHARP], lltype.Bool, **cpython._llextkws)
 
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
@@ -61,6 +63,8 @@ PY_EVAL_C_STACK_UNITS = 2
 
 
 def eval_frame(tstate, frame, throwflag):
+    _Py_EnsureTstateNotNULL(tstate)
+
     entry_frame = lltype.malloc(cpython._PyInterpreterFrame, flavor="raw", track_allocation=False)
     entry_frame.c_f_executable = cpython.Py_None
     entry_frame.c_instr_ptr = rffi.cast(cpython._Py_CODEUNIT_P, rffi.ptradd(_Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS, 1))
@@ -79,3 +83,16 @@ def eval_frame(tstate, frame, throwflag):
 
     lltype.free(entry_frame, flavor="raw", track_allocation=False)
     return cpython.PyLong_FromLong(r_int32(0))
+
+
+def clear_thread_frame(tstate, frame):
+    ll_assert(llop.int_eq(lltype.Bool, frame.c_owner, r_int8(cpython.FRAME_OWNED_BY_THREAD)), "")
+    tstate.c_c_recursion_remaining = llop.int_sub(rffi.INT, tstate.c_c_recursion_remaining, 1)
+    _PyFrame_ClearExceptCode(frame)
+    cpython.Py_DECREF(frame.c_f_executable)
+    tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, 1)
+    cpython._PyThreadState_PopFrame(tstate, frame)
+
+
+def _PyFrame_ClearExceptCode(frame):
+    cpython.Py_DECREF(frame.c_f_funcobj)
