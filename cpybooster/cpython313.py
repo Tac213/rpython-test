@@ -56,6 +56,117 @@ int _Py_CheckRecursiveCallPy(
     }
     return 0;
 }
+
+static int
+do_monitor_exc(PyThreadState *tstate, _PyInterpreterFrame *frame,
+               _Py_CODEUNIT *instr, int event)
+{
+    assert(event < _PY_MONITORING_UNGROUPED_EVENTS);
+    if (_PyFrame_GetCode(frame)->co_flags & CO_NO_MONITORING_EVENTS) {
+        return 0;
+    }
+    PyObject *exc = PyErr_GetRaisedException();
+    assert(exc != NULL);
+    int err = _Py_call_instrumentation_arg(tstate, event, frame, instr, exc);
+    if (err == 0) {
+        PyErr_SetRaisedException(exc);
+    }
+    else {
+        assert(PyErr_Occurred());
+        Py_DECREF(exc);
+    }
+    return err;
+}
+
+static inline bool
+no_tools_for_global_event(PyThreadState *tstate, int event)
+{
+    return tstate->interp->monitors.tools[event] == 0;
+}
+
+static inline bool
+no_tools_for_local_event(PyThreadState *tstate, _PyInterpreterFrame *frame, int event)
+{
+    assert(event < _PY_MONITORING_LOCAL_EVENTS);
+    _PyCoMonitoringData *data = _PyFrame_GetCode(frame)->_co_monitoring;
+    if (data) {
+        return data->active_monitors.tools[event] == 0;
+    }
+    else {
+        return no_tools_for_global_event(tstate, event);
+    }
+}
+
+void
+_PyEval_MonitorRaise(PyThreadState *tstate, _PyInterpreterFrame *frame,
+              _Py_CODEUNIT *instr)
+{
+    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_RAISE)) {
+        return;
+    }
+    do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_RAISE);
+}
+
+void
+monitor_reraise(PyThreadState *tstate, _PyInterpreterFrame *frame,
+              _Py_CODEUNIT *instr)
+{
+    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_RERAISE)) {
+        return;
+    }
+    do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_RERAISE);
+}
+
+int
+monitor_stop_iteration(PyThreadState *tstate, _PyInterpreterFrame *frame,
+                       _Py_CODEUNIT *instr, PyObject *value)
+{
+    if (no_tools_for_local_event(tstate, frame, PY_MONITORING_EVENT_STOP_ITERATION)) {
+        return 0;
+    }
+    assert(!PyErr_Occurred());
+    PyErr_SetObject(PyExc_StopIteration, value);
+    int res = do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_STOP_ITERATION);
+    if (res < 0) {
+        return res;
+    }
+    PyErr_SetRaisedException(NULL);
+    return 0;
+}
+
+void
+monitor_unwind(PyThreadState *tstate,
+               _PyInterpreterFrame *frame,
+               _Py_CODEUNIT *instr)
+{
+    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_PY_UNWIND)) {
+        return;
+    }
+    do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_PY_UNWIND);
+}
+
+
+int
+monitor_handled(PyThreadState *tstate,
+                _PyInterpreterFrame *frame,
+                _Py_CODEUNIT *instr, PyObject *exc)
+{
+    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_EXCEPTION_HANDLED)) {
+        return 0;
+    }
+    return _Py_call_instrumentation_arg(tstate, PY_MONITORING_EVENT_EXCEPTION_HANDLED, frame, instr, exc);
+}
+
+void
+monitor_throw(PyThreadState *tstate,
+              _PyInterpreterFrame *frame,
+              _Py_CODEUNIT *instr)
+{
+    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_PY_THROW)) {
+        return;
+    }
+    do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_PY_THROW);
+}
 """
 
 _INSTRUMENTATION_SOURCE = r"""
@@ -2096,6 +2207,12 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("    tstate->py_recursion_remaining++;"),
         _unique_str("}"),
         _unique_str(""),
+        _unique_str("extern void monitor_reraise(PyThreadState *tstate,  _PyInterpreterFrame *frame, _Py_CODEUNIT *instr);"),
+        _unique_str("extern int monitor_stop_iteration(PyThreadState *tstate,  _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, PyObject *value);"),
+        _unique_str("extern void monitor_unwind(PyThreadState *tstate,  _PyInterpreterFrame *frame, _Py_CODEUNIT *instr);"),
+        _unique_str("extern int monitor_handled(PyThreadState *tstate,  _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, PyObject *exc);"),
+        _unique_str("extern void monitor_throw(PyThreadState *tstate,  _PyInterpreterFrame *frame, _Py_CODEUNIT *instr);"),
+        _unique_str(""),
     ],
     separate_module_sources=[
         _EXTRA_C_SOURCE,
@@ -2120,6 +2237,12 @@ _PyEval_FrameClearAndPop = rffi.llexternal("_PyEval_FrameClearAndPop", [cpython.
 _PyFrame_GetStackPointer = rffi.llexternal("_PyFrame_GetStackPointer", [cpython._PyInterpreterFrame_P], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _PyFrame_GetCode = rffi.llexternal("_PyFrame_GetCode", [cpython._PyInterpreterFrame_P], cpython.PyCodeObject_P, **cpython._llextkws)
 _Py_Instrument = rffi.llexternal("_Py_Instrument", [cpython.PyCodeObject_P, cpython.PyInterpreterState_P], rffi.INT, **cpython._llextkws)
+
+monitor_reraise = rffi.llexternal("monitor_reraise", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
+monitor_stop_iteration = rffi.llexternal("monitor_stop_iteration", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython.PyObject_P], lltype.Bool, **cpython._llextkws)
+monitor_unwind = rffi.llexternal("monitor_unwind", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
+monitor_handled = rffi.llexternal("monitor_handled", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython.PyObject_P], rffi.INT, **cpython._llextkws)
+monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
 _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P, **cpython._llextkws)
@@ -2172,6 +2295,7 @@ def eval_frame(tstate, frame, throwflag):
         # we need to update instrumentation
         _Py_Instrument(_PyFrame_GetCode(frame), tstate.c_interp)
         # TO DO -- Monitor throw entry.
+        monitor_throw(tstate, frame, frame.c_instr_ptr)
         return _resume_with_error(tstate, frame, entry_frame, next_instr, stack_pointer)
 
     lltype.free(entry_frame, flavor="raw", track_allocation=False)
@@ -2195,6 +2319,7 @@ def _goto(label, tstate, frame, entry_frame):
             # Restore previous frame and exit
             tstate.c_current_frame = frame.c_previous
             tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, PY_EVAL_C_STACK_UNITS)
+            lltype.free(entry_frame, flavor="raw", track_allocation=False)
             return lltype.nullptr(cpython.PyObject)
     return lltype.nullptr(cpython.PyObject)
 
