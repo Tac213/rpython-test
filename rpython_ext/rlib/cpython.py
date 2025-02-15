@@ -96,6 +96,8 @@ PyObject_P = lltype.Ptr(PyObject)
 
 Py_INCREF = rffi.llexternal("Py_INCREF", [PyObject_P], lltype.Void, **_llextkws)
 Py_DECREF = rffi.llexternal("Py_DECREF", [PyObject_P], lltype.Void, **_llextkws)
+Py_XINCREF = rffi.llexternal("Py_XINCREF", [PyObject_P], lltype.Void, **_llextkws)
+Py_XDECREF = rffi.llexternal("Py_XDECREF", [PyObject_P], lltype.Void, **_llextkws)
 
 # object.h
 unaryfunc = lltype.Ptr(lltype.FuncType([PyObject_P], PyObject_P))
