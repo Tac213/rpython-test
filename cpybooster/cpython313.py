@@ -98,16 +98,6 @@ no_tools_for_local_event(PyThreadState *tstate, _PyInterpreterFrame *frame, int 
 }
 
 void
-_PyEval_MonitorRaise(PyThreadState *tstate, _PyInterpreterFrame *frame,
-              _Py_CODEUNIT *instr)
-{
-    if (no_tools_for_global_event(tstate, PY_MONITORING_EVENT_RAISE)) {
-        return;
-    }
-    do_monitor_exc(tstate, frame, instr, PY_MONITORING_EVENT_RAISE);
-}
-
-void
 monitor_reraise(PyThreadState *tstate, _PyInterpreterFrame *frame,
               _Py_CODEUNIT *instr)
 {
@@ -2193,11 +2183,14 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define Py_BUILD_CORE"),
         _unique_str("#endif"),
         _unique_str("#include <internal/pycore_ceval.h>"),
+        _unique_str("#include <internal/pycore_pyerrors.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
         _unique_str("#define EMPTY_CONST_CHARP \"\""),
+        _unique_str("#define _STR_RETURN_WITHOUT_EXCEPTION \"error return without exception set\""),
         _unique_str("#define _INIT_NULL_PTR() NULL"),
+        _unique_str("#define _GET_FRAME_INSTR_PTR(frame) frame->instr_ptr"),
         _unique_str(""),
         _unique_str("static inline int _Py_EnterRecursivePy(PyThreadState *tstate) {"),
         _unique_str("    return (tstate->py_recursion_remaining-- <= 0) && _Py_CheckRecursiveCallPy(tstate);"),
@@ -2233,10 +2226,15 @@ _Py_EnsureTstateNotNULL = rffi.llexternal("_Py_EnsureTstateNotNULL", [cpython.Py
 _Py_EnterRecursiveCallTstate = rffi.llexternal("_Py_EnterRecursiveCallTstate", [cpython.PyThreadState_P, rffi.CONST_CCHARP], lltype.Bool, **cpython._llextkws)
 _Py_EnterRecursivePy = rffi.llexternal("_Py_EnterRecursivePy", [cpython.PyThreadState_P], lltype.Bool, **cpython._llextkws)
 _Py_LeaveRecursiveCallPy = rffi.llexternal("_Py_LeaveRecursiveCallPy", [cpython.PyThreadState_P], lltype.Void, **cpython._llextkws)
+_PyEval_MonitorRaise = rffi.llexternal("_PyEval_MonitorRaise", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PyEval_FrameClearAndPop = rffi.llexternal("_PyEval_FrameClearAndPop", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P], lltype.Void, **cpython._llextkws)
 _PyFrame_GetStackPointer = rffi.llexternal("_PyFrame_GetStackPointer", [cpython._PyInterpreterFrame_P], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _PyFrame_GetCode = rffi.llexternal("_PyFrame_GetCode", [cpython._PyInterpreterFrame_P], cpython.PyCodeObject_P, **cpython._llextkws)
+_PyFrame_GetFrameObject = rffi.llexternal("_PyFrame_GetFrameObject", [cpython._PyInterpreterFrame_P], cpython.PyFrameObject_P, **cpython._llextkws)
+_PyFrame_IsIncomplete = rffi.llexternal("_PyFrame_IsIncomplete", [cpython._PyInterpreterFrame_P], lltype.Bool, **cpython._llextkws)
 _Py_Instrument = rffi.llexternal("_Py_Instrument", [cpython.PyCodeObject_P, cpython.PyInterpreterState_P], rffi.INT, **cpython._llextkws)
+_PyErr_Occurred = rffi.llexternal("_PyErr_Occurred", [cpython.PyThreadState_P], cpython.PyObject_P, **cpython._llextkws)
+_PyErr_SetString = rffi.llexternal("_PyErr_SetString", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP], lltype.Void, **cpython._llextkws)
 
 monitor_reraise = rffi.llexternal("monitor_reraise", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 monitor_stop_iteration = rffi.llexternal("monitor_stop_iteration", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython.PyObject_P], lltype.Bool, **cpython._llextkws)
@@ -2245,8 +2243,11 @@ monitor_handled = rffi.llexternal("monitor_handled", [cpython.PyThreadState_P, c
 monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
+_STR_RETURN_WITHOUT_EXCEPTION = rffi.CConstant("_STR_RETURN_WITHOUT_EXCEPTION", rffi.CONST_CCHARP)
 _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
+_GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
+
 PY_EVAL_C_STACK_UNITS = 2
 # region goto labels
 START_FRAME = 1
@@ -2325,6 +2326,25 @@ def _goto(label, tstate, frame, entry_frame):
 
 
 @always_inline
+def _error(tstate, frame, entry_frame, next_instr, stack_pointer):
+    # Double-check exception status.
+    if llop.ptr_nonzero(lltype.Bool, _PyErr_Occurred(tstate)):
+        _PyErr_SetString(tstate, cpython.PyExc_SystemError, _STR_RETURN_WITHOUT_EXCEPTION)
+
+    if not _PyFrame_IsIncomplete(frame):
+        f = _PyFrame_GetFrameObject(frame)
+        if llop.ptr_nonzero(lltype.Bool, f):
+            cpython.PyTraceBack_Here(f)
+    _PyEval_MonitorRaise(tstate, frame, lltype.direct_ptradd(next_instr, -1))
+    return _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+
+
+@always_inline
+def _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
+    return lltype.nullptr(cpython.PyObject)
+
+
+@always_inline
 def _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
     _Py_LeaveRecursiveCallPy(tstate)
     # GH-99729: We need to unlink the frame *before* clearing it:
@@ -2344,6 +2364,6 @@ def _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
 
 @always_inline
 def _resume_with_error(tstate, frame, entry_frame, next_instr, stack_pointer):
-    next_instr = frame.c_instr_ptr
+    next_instr = _GET_FRAME_INSTR_PTR(frame)
     stack_pointer = _PyFrame_GetStackPointer(frame)
-    return lltype.nullptr(cpython.PyObject)
+    return _error(tstate, frame, entry_frame, next_instr, stack_pointer)

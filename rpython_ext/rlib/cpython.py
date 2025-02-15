@@ -1280,5 +1280,12 @@ NB_INPLACE_TRUE_DIVIDE = config["NB_INPLACE_TRUE_DIVIDE"]
 NB_INPLACE_XOR = config["NB_INPLACE_XOR"]
 NB_OPARG_LAST = config["NB_OPARG_LAST"]
 
+# pyerrors.h
+PyExc_SystemError = rffi.CConstant("PyExc_SystemError", PyObject_P)
+
+# traceback.h
+PyTraceBack_Here = rffi.llexternal("PyTraceBack_Here", [PyFrameObject_P], rffi.INT, **_llextkws)
+PyTraceBack_Print = rffi.llexternal("PyTraceBack_Print", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+
 del config
  
