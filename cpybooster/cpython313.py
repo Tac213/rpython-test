@@ -241,13 +241,6 @@ _INSTRUMENTATION_SOURCE = r"""
 #include "internal/pycore_modsupport.h"    // _PyModule_CreateInitialized()
 #include "internal/pycore_namespace.h"
 #include "internal/pycore_object.h"
-#ifndef NEED_OPCODE_METADATA
-#define NEED_OPCODE_METADATA
-#endif
-#include "internal/pycore_opcode_metadata.h" // IS_VALID_OPCODE, _PyOpcode_Caches
-#ifdef NEED_OPCODE_METADATA
-#undef NEED_OPCODE_METADATA
-#endif
 #include "internal/pycore_pyatomic_ft_wrappers.h" // FT_ATOMIC_STORE_UINTPTR_RELEASE
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"       // _PyInterpreterState_GET()
@@ -2231,6 +2224,245 @@ _PyErr_GetRaisedException(PyThreadState *tstate) {
 }
 """
 
+_OPCODE_METADATA_SOURCE = r"""
+const uint8_t _PyOpcode_Caches[256] = {
+    [JUMP_BACKWARD] = 1,
+    [TO_BOOL] = 3,
+    [BINARY_SUBSCR] = 1,
+    [STORE_SUBSCR] = 1,
+    [SEND] = 1,
+    [UNPACK_SEQUENCE] = 1,
+    [STORE_ATTR] = 4,
+    [LOAD_GLOBAL] = 4,
+    [LOAD_SUPER_ATTR] = 1,
+    [LOAD_ATTR] = 9,
+    [COMPARE_OP] = 1,
+    [CONTAINS_OP] = 1,
+    [POP_JUMP_IF_TRUE] = 1,
+    [POP_JUMP_IF_FALSE] = 1,
+    [POP_JUMP_IF_NONE] = 1,
+    [POP_JUMP_IF_NOT_NONE] = 1,
+    [FOR_ITER] = 1,
+    [CALL] = 3,
+    [BINARY_OP] = 1,
+};
+
+const uint8_t _PyOpcode_Deopt[256] = {
+    [BEFORE_ASYNC_WITH] = BEFORE_ASYNC_WITH,
+    [BEFORE_WITH] = BEFORE_WITH,
+    [BINARY_OP] = BINARY_OP,
+    [BINARY_OP_ADD_FLOAT] = BINARY_OP,
+    [BINARY_OP_ADD_INT] = BINARY_OP,
+    [BINARY_OP_ADD_UNICODE] = BINARY_OP,
+    [BINARY_OP_INPLACE_ADD_UNICODE] = BINARY_OP,
+    [BINARY_OP_MULTIPLY_FLOAT] = BINARY_OP,
+    [BINARY_OP_MULTIPLY_INT] = BINARY_OP,
+    [BINARY_OP_SUBTRACT_FLOAT] = BINARY_OP,
+    [BINARY_OP_SUBTRACT_INT] = BINARY_OP,
+    [BINARY_SLICE] = BINARY_SLICE,
+    [BINARY_SUBSCR] = BINARY_SUBSCR,
+    [BINARY_SUBSCR_DICT] = BINARY_SUBSCR,
+    [BINARY_SUBSCR_GETITEM] = BINARY_SUBSCR,
+    [BINARY_SUBSCR_LIST_INT] = BINARY_SUBSCR,
+    [BINARY_SUBSCR_STR_INT] = BINARY_SUBSCR,
+    [BINARY_SUBSCR_TUPLE_INT] = BINARY_SUBSCR,
+    [BUILD_CONST_KEY_MAP] = BUILD_CONST_KEY_MAP,
+    [BUILD_LIST] = BUILD_LIST,
+    [BUILD_MAP] = BUILD_MAP,
+    [BUILD_SET] = BUILD_SET,
+    [BUILD_SLICE] = BUILD_SLICE,
+    [BUILD_STRING] = BUILD_STRING,
+    [BUILD_TUPLE] = BUILD_TUPLE,
+    [CACHE] = CACHE,
+    [CALL] = CALL,
+    [CALL_ALLOC_AND_ENTER_INIT] = CALL,
+    [CALL_BOUND_METHOD_EXACT_ARGS] = CALL,
+    [CALL_BOUND_METHOD_GENERAL] = CALL,
+    [CALL_BUILTIN_CLASS] = CALL,
+    [CALL_BUILTIN_FAST] = CALL,
+    [CALL_BUILTIN_FAST_WITH_KEYWORDS] = CALL,
+    [CALL_BUILTIN_O] = CALL,
+    [CALL_FUNCTION_EX] = CALL_FUNCTION_EX,
+    [CALL_INTRINSIC_1] = CALL_INTRINSIC_1,
+    [CALL_INTRINSIC_2] = CALL_INTRINSIC_2,
+    [CALL_ISINSTANCE] = CALL,
+    [CALL_KW] = CALL_KW,
+    [CALL_LEN] = CALL,
+    [CALL_LIST_APPEND] = CALL,
+    [CALL_METHOD_DESCRIPTOR_FAST] = CALL,
+    [CALL_METHOD_DESCRIPTOR_FAST_WITH_KEYWORDS] = CALL,
+    [CALL_METHOD_DESCRIPTOR_NOARGS] = CALL,
+    [CALL_METHOD_DESCRIPTOR_O] = CALL,
+    [CALL_NON_PY_GENERAL] = CALL,
+    [CALL_PY_EXACT_ARGS] = CALL,
+    [CALL_PY_GENERAL] = CALL,
+    [CALL_STR_1] = CALL,
+    [CALL_TUPLE_1] = CALL,
+    [CALL_TYPE_1] = CALL,
+    [CHECK_EG_MATCH] = CHECK_EG_MATCH,
+    [CHECK_EXC_MATCH] = CHECK_EXC_MATCH,
+    [CLEANUP_THROW] = CLEANUP_THROW,
+    [COMPARE_OP] = COMPARE_OP,
+    [COMPARE_OP_FLOAT] = COMPARE_OP,
+    [COMPARE_OP_INT] = COMPARE_OP,
+    [COMPARE_OP_STR] = COMPARE_OP,
+    [CONTAINS_OP] = CONTAINS_OP,
+    [CONTAINS_OP_DICT] = CONTAINS_OP,
+    [CONTAINS_OP_SET] = CONTAINS_OP,
+    [CONVERT_VALUE] = CONVERT_VALUE,
+    [COPY] = COPY,
+    [COPY_FREE_VARS] = COPY_FREE_VARS,
+    [DELETE_ATTR] = DELETE_ATTR,
+    [DELETE_DEREF] = DELETE_DEREF,
+    [DELETE_FAST] = DELETE_FAST,
+    [DELETE_GLOBAL] = DELETE_GLOBAL,
+    [DELETE_NAME] = DELETE_NAME,
+    [DELETE_SUBSCR] = DELETE_SUBSCR,
+    [DICT_MERGE] = DICT_MERGE,
+    [DICT_UPDATE] = DICT_UPDATE,
+    [END_ASYNC_FOR] = END_ASYNC_FOR,
+    [END_FOR] = END_FOR,
+    [END_SEND] = END_SEND,
+    [ENTER_EXECUTOR] = ENTER_EXECUTOR,
+    [EXIT_INIT_CHECK] = EXIT_INIT_CHECK,
+    [EXTENDED_ARG] = EXTENDED_ARG,
+    [FORMAT_SIMPLE] = FORMAT_SIMPLE,
+    [FORMAT_WITH_SPEC] = FORMAT_WITH_SPEC,
+    [FOR_ITER] = FOR_ITER,
+    [FOR_ITER_GEN] = FOR_ITER,
+    [FOR_ITER_LIST] = FOR_ITER,
+    [FOR_ITER_RANGE] = FOR_ITER,
+    [FOR_ITER_TUPLE] = FOR_ITER,
+    [GET_AITER] = GET_AITER,
+    [GET_ANEXT] = GET_ANEXT,
+    [GET_AWAITABLE] = GET_AWAITABLE,
+    [GET_ITER] = GET_ITER,
+    [GET_LEN] = GET_LEN,
+    [GET_YIELD_FROM_ITER] = GET_YIELD_FROM_ITER,
+    [IMPORT_FROM] = IMPORT_FROM,
+    [IMPORT_NAME] = IMPORT_NAME,
+    [INSTRUMENTED_CALL] = INSTRUMENTED_CALL,
+    [INSTRUMENTED_CALL_FUNCTION_EX] = INSTRUMENTED_CALL_FUNCTION_EX,
+    [INSTRUMENTED_CALL_KW] = INSTRUMENTED_CALL_KW,
+    [INSTRUMENTED_END_FOR] = INSTRUMENTED_END_FOR,
+    [INSTRUMENTED_END_SEND] = INSTRUMENTED_END_SEND,
+    [INSTRUMENTED_FOR_ITER] = INSTRUMENTED_FOR_ITER,
+    [INSTRUMENTED_INSTRUCTION] = INSTRUMENTED_INSTRUCTION,
+    [INSTRUMENTED_JUMP_BACKWARD] = INSTRUMENTED_JUMP_BACKWARD,
+    [INSTRUMENTED_JUMP_FORWARD] = INSTRUMENTED_JUMP_FORWARD,
+    [INSTRUMENTED_LINE] = INSTRUMENTED_LINE,
+    [INSTRUMENTED_LOAD_SUPER_ATTR] = INSTRUMENTED_LOAD_SUPER_ATTR,
+    [INSTRUMENTED_POP_JUMP_IF_FALSE] = INSTRUMENTED_POP_JUMP_IF_FALSE,
+    [INSTRUMENTED_POP_JUMP_IF_NONE] = INSTRUMENTED_POP_JUMP_IF_NONE,
+    [INSTRUMENTED_POP_JUMP_IF_NOT_NONE] = INSTRUMENTED_POP_JUMP_IF_NOT_NONE,
+    [INSTRUMENTED_POP_JUMP_IF_TRUE] = INSTRUMENTED_POP_JUMP_IF_TRUE,
+    [INSTRUMENTED_RESUME] = INSTRUMENTED_RESUME,
+    [INSTRUMENTED_RETURN_CONST] = INSTRUMENTED_RETURN_CONST,
+    [INSTRUMENTED_RETURN_VALUE] = INSTRUMENTED_RETURN_VALUE,
+    [INSTRUMENTED_YIELD_VALUE] = INSTRUMENTED_YIELD_VALUE,
+    [INTERPRETER_EXIT] = INTERPRETER_EXIT,
+    [IS_OP] = IS_OP,
+    [JUMP_BACKWARD] = JUMP_BACKWARD,
+    [JUMP_BACKWARD_NO_INTERRUPT] = JUMP_BACKWARD_NO_INTERRUPT,
+    [JUMP_FORWARD] = JUMP_FORWARD,
+    [LIST_APPEND] = LIST_APPEND,
+    [LIST_EXTEND] = LIST_EXTEND,
+    [LOAD_ASSERTION_ERROR] = LOAD_ASSERTION_ERROR,
+    [LOAD_ATTR] = LOAD_ATTR,
+    [LOAD_ATTR_CLASS] = LOAD_ATTR,
+    [LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN] = LOAD_ATTR,
+    [LOAD_ATTR_INSTANCE_VALUE] = LOAD_ATTR,
+    [LOAD_ATTR_METHOD_LAZY_DICT] = LOAD_ATTR,
+    [LOAD_ATTR_METHOD_NO_DICT] = LOAD_ATTR,
+    [LOAD_ATTR_METHOD_WITH_VALUES] = LOAD_ATTR,
+    [LOAD_ATTR_MODULE] = LOAD_ATTR,
+    [LOAD_ATTR_NONDESCRIPTOR_NO_DICT] = LOAD_ATTR,
+    [LOAD_ATTR_NONDESCRIPTOR_WITH_VALUES] = LOAD_ATTR,
+    [LOAD_ATTR_PROPERTY] = LOAD_ATTR,
+    [LOAD_ATTR_SLOT] = LOAD_ATTR,
+    [LOAD_ATTR_WITH_HINT] = LOAD_ATTR,
+    [LOAD_BUILD_CLASS] = LOAD_BUILD_CLASS,
+    [LOAD_CONST] = LOAD_CONST,
+    [LOAD_DEREF] = LOAD_DEREF,
+    [LOAD_FAST] = LOAD_FAST,
+    [LOAD_FAST_AND_CLEAR] = LOAD_FAST_AND_CLEAR,
+    [LOAD_FAST_CHECK] = LOAD_FAST_CHECK,
+    [LOAD_FAST_LOAD_FAST] = LOAD_FAST_LOAD_FAST,
+    [LOAD_FROM_DICT_OR_DEREF] = LOAD_FROM_DICT_OR_DEREF,
+    [LOAD_FROM_DICT_OR_GLOBALS] = LOAD_FROM_DICT_OR_GLOBALS,
+    [LOAD_GLOBAL] = LOAD_GLOBAL,
+    [LOAD_GLOBAL_BUILTIN] = LOAD_GLOBAL,
+    [LOAD_GLOBAL_MODULE] = LOAD_GLOBAL,
+    [LOAD_LOCALS] = LOAD_LOCALS,
+    [LOAD_NAME] = LOAD_NAME,
+    [LOAD_SUPER_ATTR] = LOAD_SUPER_ATTR,
+    [LOAD_SUPER_ATTR_ATTR] = LOAD_SUPER_ATTR,
+    [LOAD_SUPER_ATTR_METHOD] = LOAD_SUPER_ATTR,
+    [MAKE_CELL] = MAKE_CELL,
+    [MAKE_FUNCTION] = MAKE_FUNCTION,
+    [MAP_ADD] = MAP_ADD,
+    [MATCH_CLASS] = MATCH_CLASS,
+    [MATCH_KEYS] = MATCH_KEYS,
+    [MATCH_MAPPING] = MATCH_MAPPING,
+    [MATCH_SEQUENCE] = MATCH_SEQUENCE,
+    [NOP] = NOP,
+    [POP_EXCEPT] = POP_EXCEPT,
+    [POP_JUMP_IF_FALSE] = POP_JUMP_IF_FALSE,
+    [POP_JUMP_IF_NONE] = POP_JUMP_IF_NONE,
+    [POP_JUMP_IF_NOT_NONE] = POP_JUMP_IF_NOT_NONE,
+    [POP_JUMP_IF_TRUE] = POP_JUMP_IF_TRUE,
+    [POP_TOP] = POP_TOP,
+    [PUSH_EXC_INFO] = PUSH_EXC_INFO,
+    [PUSH_NULL] = PUSH_NULL,
+    [RAISE_VARARGS] = RAISE_VARARGS,
+    [RERAISE] = RERAISE,
+    [RESERVED] = RESERVED,
+    [RESUME] = RESUME,
+    [RESUME_CHECK] = RESUME,
+    [RETURN_CONST] = RETURN_CONST,
+    [RETURN_GENERATOR] = RETURN_GENERATOR,
+    [RETURN_VALUE] = RETURN_VALUE,
+    [SEND] = SEND,
+    [SEND_GEN] = SEND,
+    [SETUP_ANNOTATIONS] = SETUP_ANNOTATIONS,
+    [SET_ADD] = SET_ADD,
+    [SET_FUNCTION_ATTRIBUTE] = SET_FUNCTION_ATTRIBUTE,
+    [SET_UPDATE] = SET_UPDATE,
+    [STORE_ATTR] = STORE_ATTR,
+    [STORE_ATTR_INSTANCE_VALUE] = STORE_ATTR,
+    [STORE_ATTR_SLOT] = STORE_ATTR,
+    [STORE_ATTR_WITH_HINT] = STORE_ATTR,
+    [STORE_DEREF] = STORE_DEREF,
+    [STORE_FAST] = STORE_FAST,
+    [STORE_FAST_LOAD_FAST] = STORE_FAST_LOAD_FAST,
+    [STORE_FAST_STORE_FAST] = STORE_FAST_STORE_FAST,
+    [STORE_GLOBAL] = STORE_GLOBAL,
+    [STORE_NAME] = STORE_NAME,
+    [STORE_SLICE] = STORE_SLICE,
+    [STORE_SUBSCR] = STORE_SUBSCR,
+    [STORE_SUBSCR_DICT] = STORE_SUBSCR,
+    [STORE_SUBSCR_LIST_INT] = STORE_SUBSCR,
+    [SWAP] = SWAP,
+    [TO_BOOL] = TO_BOOL,
+    [TO_BOOL_ALWAYS_TRUE] = TO_BOOL,
+    [TO_BOOL_BOOL] = TO_BOOL,
+    [TO_BOOL_INT] = TO_BOOL,
+    [TO_BOOL_LIST] = TO_BOOL,
+    [TO_BOOL_NONE] = TO_BOOL,
+    [TO_BOOL_STR] = TO_BOOL,
+    [UNARY_INVERT] = UNARY_INVERT,
+    [UNARY_NEGATIVE] = UNARY_NEGATIVE,
+    [UNARY_NOT] = UNARY_NOT,
+    [UNPACK_EX] = UNPACK_EX,
+    [UNPACK_SEQUENCE] = UNPACK_SEQUENCE,
+    [UNPACK_SEQUENCE_LIST] = UNPACK_SEQUENCE,
+    [UNPACK_SEQUENCE_TUPLE] = UNPACK_SEQUENCE,
+    [UNPACK_SEQUENCE_TWO_TUPLE] = UNPACK_SEQUENCE,
+    [WITH_EXCEPT_START] = WITH_EXCEPT_START,
+    [YIELD_VALUE] = YIELD_VALUE,
+};
+"""
+
 
 @not_rpython
 def _unique_str(s):
@@ -2251,20 +2483,30 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#ifndef Py_BUILD_CORE"),
         _unique_str("#define Py_BUILD_CORE"),
         _unique_str("#endif"),
+        _unique_str("#include <opcode_ids.h>"),
         _unique_str("#include <internal/pycore_ceval.h>"),
         _unique_str("#include <internal/pycore_pyerrors.h>"),
+        _unique_str("#include <internal/pycore_opcode_metadata.h>"),
         _unique_str("#include <internal/pycore_pyatomic_ft_wrappers.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
         _unique_str("#define EMPTY_CONST_CHARP \"\""),
         _unique_str("#define _STR_RETURN_WITHOUT_EXCEPTION \"error return without exception set\""),
+        _unique_str("#define _STR_UNKNOWN_OPCODE \"%U:%d: unknown opcode %d\""),
         _unique_str("#define _INT_DECLARE() 0"),
         _unique_str("#define _INT_ADDRESS(var) &(var)"),
         _unique_str("#define _POINTER_ADD(ptr, n) (ptr) + (n)"),
         _unique_str("#define _POINTER_SUB(ptr, n) (ptr) - (n)"),
         _unique_str("#define _INIT_NULL_PTR() NULL"),
         _unique_str("#define _GET_FRAME_INSTR_PTR(frame) (frame)->instr_ptr"),
+        _unique_str("#define _GET_INSTR_PTR_OPCODE(next_instr) (next_instr)->op.code"),
+        _unique_str("#define _PAUSE_ADAPTIVE_COUNTER(next_instr) \\"),
+        _unique_str("    { \\"),
+        _unique_str("        _PyBinaryOpCache *cache = (_PyBinaryOpCache *)((next_instr) + 1); \\"),
+        _unique_str("        PAUSE_ADAPTIVE_COUNTER(cache->counter); \\"),
+        _unique_str("    }"),
+        _unique_str("#define _GET_CODE_OBJECT_ORIGINAL_OPCODE(code, here) (code)->_co_monitoring->lines[(int)((here) - _PyCode_CODE((code)))].original_opcode"),
         _unique_str("// Python/ceval_macros.h"),
         _unique_str("#define INSTR_OFFSET(next_instr, frame)    ((int)((next_instr) - _PyCode_CODE(_PyFrame_GetCode((frame)))))"),
         _unique_str("#define NEXTOPARG(next_instr, opcode, oparg)  do { \\"),
@@ -2299,6 +2541,24 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define STACK_GROW(stack_pointer, n)       BASIC_STACKADJ((stack_pointer), n)"),
         _unique_str("#define STACK_SHRINK(stack_pointer, n)     BASIC_STACKADJ((stack_pointer), -(n))"),
         _unique_str(""),
+        _unique_str("#ifdef Py_GIL_DISABLED"),
+        _unique_str("#define ADVANCE_ADAPTIVE_COUNTER(COUNTER) \\"),
+        _unique_str("    do { \\"),
+        _unique_str("        /* gh-115999 tracks progress on addressing this. */ \\"),
+        _unique_str("        static_assert(0, \"The specializing interpreter is not yet thread-safe\"); \\"),
+        _unique_str("    } while (0);"),
+        _unique_str("#define PAUSE_ADAPTIVE_COUNTER(COUNTER) ((void)COUNTER)"),
+        _unique_str("#else"),
+        _unique_str("#define ADVANCE_ADAPTIVE_COUNTER(COUNTER) \\"),
+        _unique_str("    do { \\"),
+        _unique_str("        (COUNTER) = advance_backoff_counter((COUNTER)); \\"),
+        _unique_str("    } while (0);"),
+        _unique_str("#define PAUSE_ADAPTIVE_COUNTER(COUNTER) \\"),
+        _unique_str("    do { \\"),
+        _unique_str("        (COUNTER) = pause_backoff_counter((COUNTER)); \\"),
+        _unique_str("    } while (0);"),
+        _unique_str("#endif"),
+        _unique_str(""),
         _unique_str("static inline int _Py_EnterRecursivePy(PyThreadState *tstate) {"),
         _unique_str("    return (tstate->py_recursion_remaining-- <= 0) && _Py_CheckRecursiveCallPy(tstate);"),
         _unique_str("}"),
@@ -2323,12 +2583,18 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _FRAME_SOURCE,
         _FRAME_OBJECT_SOURCE,
         _ERRORS_SOURCE,
+        _OPCODE_METADATA_SOURCE,
     ],
 )
 
 _Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS = rffi.CConstant(
     "_Py_INTERPRETER_TRAMPOLINE_INSTRUCTIONS",
     rffi.CArrayPtr(cpython._Py_CODEUNIT),
+)
+
+_PyOpcode_Caches = rffi.CConstant(
+    "_PyOpcode_Caches",
+    rffi.CArrayPtr(rffi.UCHAR),
 )
 
 _Py_EnsureTstateNotNULL = rffi.llexternal("_Py_EnsureTstateNotNULL", [cpython.PyThreadState_P], lltype.Void, **cpython._llextkws)
@@ -2345,10 +2611,13 @@ _PyFrame_GetCode = rffi.llexternal("_PyFrame_GetCode", [cpython._PyInterpreterFr
 _PyFrame_Stackbase = rffi.llexternal("_PyFrame_Stackbase", [cpython._PyInterpreterFrame_P], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _PyFrame_GetFrameObject = rffi.llexternal("_PyFrame_GetFrameObject", [cpython._PyInterpreterFrame_P], cpython.PyFrameObject_P, **cpython._llextkws)
 _PyFrame_IsIncomplete = rffi.llexternal("_PyFrame_IsIncomplete", [cpython._PyInterpreterFrame_P], lltype.Bool, **cpython._llextkws)
+PyUnstable_InterpreterFrame_GetLine = rffi.llexternal("PyUnstable_InterpreterFrame_GetLine", [cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
 _Py_Instrument = rffi.llexternal("_Py_Instrument", [cpython.PyCodeObject_P, cpython.PyInterpreterState_P], rffi.INT, **cpython._llextkws)
+_Py_call_instrumentation_line = rffi.llexternal("_Py_call_instrumentation_line", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
 _PyErr_Occurred = rffi.llexternal("_PyErr_Occurred", [cpython.PyThreadState_P], cpython.PyObject_P, **cpython._llextkws)
 _PyErr_SetString = rffi.llexternal("_PyErr_SetString", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP], lltype.Void, **cpython._llextkws)
 _PyErr_GetRaisedException = rffi.llexternal("_PyErr_GetRaisedException", [cpython.PyThreadState_P], cpython.PyObject_P, **cpython._llextkws)
+_PyErr_Format_PyObject_Int_Uchar = rffi.llexternal("_PyErr_Format", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP, cpython.PyObject_P, rffi.INT, rffi.UCHAR], cpython.PyObject_P, **cpython._llextkws)
 
 get_exception_handler = rffi.llexternal("get_exception_handler", [cpython.PyCodeObject_P, rffi.INT, rffi.INT_realP, rffi.INT_realP, rffi.INT_realP], rffi.INT, **cpython._llextkws)
 monitor_reraise = rffi.llexternal("monitor_reraise", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
@@ -2359,6 +2628,7 @@ monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpyth
 
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
 _STR_RETURN_WITHOUT_EXCEPTION = rffi.CConstant("_STR_RETURN_WITHOUT_EXCEPTION", rffi.CONST_CCHARP)
+_STR_UNKNOWN_OPCODE = rffi.CConstant("_STR_UNKNOWN_OPCODE", rffi.CONST_CCHARP)
 _INT_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.INT, **cpython._llextkws)
 _UINT8_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.UCHAR, **cpython._llextkws)
 _INT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [rffi.INT], rffi.INT_realP, **cpython._llextkws)
@@ -2367,6 +2637,9 @@ _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpyth
 _INSTR_PTR_ADD = rffi.llexternal("_POINTER_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INSTR_PTR_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
+_GET_INSTR_PTR_OPCODE = rffi.llexternal("_GET_INSTR_PTR_OPCODE", [cpython._Py_CODEUNIT_P], rffi.UCHAR, **cpython._llextkws)
+_GET_CODE_OBJECT_ORIGINAL_OPCODE = rffi.llexternal("_GET_CODE_OBJECT_ORIGINAL_OPCODE", [cpython.PyCodeObject_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
+_PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
 INSTR_OFFSET = rffi.llexternal("INSTR_OFFSET", [cpython._Py_CODEUNIT_P, cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
 DISPATCH = rffi.llexternal("DISPATCH", [cpython._Py_CODEUNIT_P, rffi.UCHAR, rffi.INT], lltype.Void, **cpython._llextkws)
@@ -2461,7 +2734,48 @@ def _resume_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_p
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
+
 def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    if llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
+        prev = _GET_FRAME_INSTR_PTR(frame)
+        frame.c_instr_ptr = next_instr
+        here = _GET_FRAME_INSTR_PTR(frame)
+        original_opcode = _INT_DECLARE()
+        if llop.int_is_true(lltype.Bool, tstate.c_tracing):
+            code = _PyFrame_GetCode(frame)
+            original_opcode = _GET_CODE_OBJECT_ORIGINAL_OPCODE(code, here)
+        else:
+            _PyFrame_SetStackPointer(frame, stack_pointer)
+            original_opcode = _Py_call_instrumentation_line(tstate, frame, here, prev)
+            stack_pointer = _PyFrame_GetStackPointer(frame)
+            if llop.int_lt(lltype.Bool, original_opcode, 0):
+                next_instr = _INSTR_PTR_ADD(here, r_int32(1))
+                return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+            next_instr = _GET_FRAME_INSTR_PTR(frame)
+            if not llop.ptr_eq(lltype.Bool, next_instr, here):
+                DISPATCH(next_instr, opcode, oparg)
+                return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+        if llop.int_is_true(lltype.Bool, _PyOpcode_Caches[original_opcode]):
+            # Prevent the underlying instruction from specializing
+            # and overwriting the instrumentation.
+            _PAUSE_ADAPTIVE_COUNTER(next_instr)
+        opcode = rffi.cast(rffi.UCHAR, original_opcode)
+        return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    else:
+        # Tell C compilers not to hold the opcode variable in the loop.
+        # next_instr points the current instruction without TARGET().
+        opcode = _GET_INSTR_PTR_OPCODE(next_instr)
+        _PyErr_Format_PyObject_Int_Uchar(tstate, cpython.PyExc_SystemError,
+                                         _STR_UNKNOWN_OPCODE,
+                                         _PyFrame_GetCode(frame).c_co_filename,
+                                         PyUnstable_InterpreterFrame_GetLine(frame),
+                                         opcode)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # End instructions
+
+    # This should never be reached. Every opcode should end with DISPATCH()
+    # or goto error.
+    cpython.Py_UNREACHABLE()
     return lltype.nullptr(cpython.PyObject)
 
 
