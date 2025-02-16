@@ -3,7 +3,9 @@
 # contact: cookiezhx@163.com
 
 from __future__ import print_function, absolute_import, division
+import inspect
 
+from rpython.rlib.objectmodel import not_rpython
 from rpython.translator.tool.cbuild import ExternalCompilationInfo
 from rpython.rtyper.lltypesystem import rffi, lltype
 from rpython.rtyper.tool import rffi_platform
@@ -418,6 +420,11 @@ config = rffi_platform.configure(_CPyTypeObjectConfig)
 PyTypeObject = config["PyTypeObject"]
 PyTypeObject_P = lltype.Ptr(PyTypeObject)
 
+Py_TYPE = rffi.llexternal("Py_TYPE", [PyObject_P], PyTypeObject_P, **_llextkws)
+
+# abstract.h
+PyObject_CallNoArgs = rffi.llexternal("PyObject_CallNoArgs", [PyObject_P], PyObject_P, **_llextkws)
+
 
 class _CPyModuleObjectConfig:
     """
@@ -545,16 +552,30 @@ _PyInterpreterFrame_P = lltype.Ptr(_PyInterpreterFrame)
 PyFrameObject = lltype.ForwardReference()
 PyFrameObject_P = lltype.Ptr(PyFrameObject)
 
+
+@not_rpython
+def _unique_str(s):
+    # type: (str) -> str
+    f = inspect.currentframe()
+    assert f
+    f = f.f_back
+    assert f
+    if s.endswith("\\"):
+        s = s[:-1]
+        return "{}{}/* FILE: {} LINE: {} */  \\".format(s, "  " if s else "", __file__, f.f_lineno)
+    return "{}{}/* FILE: {} LINE: {} */".format(s, "  " if s else "", __file__, f.f_lineno)
+
+
 _FRAME_ECI = ExternalCompilationInfo(
     pre_include_bits=_ECI.pre_include_bits,
     post_include_bits=[
-        "#ifndef Py_BUILD_CORE  // {}".format(__file__),
-        "#define Py_BUILD_CORE  // {}".format(__file__),
-        "#endif  // {}.{}".format(__file__, 0),
-        "#include <internal/pycore_frame.h>  // {}".format(__file__),
-        "#ifdef Py_BUILD_CORE  // {}".format(__file__),
-        "#undef Py_BUILD_CORE  // {}".format(__file__),
-        "#endif  // {}.{}".format(__file__, 1),
+        _unique_str("#ifndef Py_BUILD_CORE"),
+        _unique_str("#define Py_BUILD_CORE"),
+        _unique_str("#endif"),
+        _unique_str("#include <internal/pycore_frame.h>"),
+        _unique_str("#ifdef Py_BUILD_CORE"),
+        _unique_str("#undef Py_BUILD_CORE"),
+        _unique_str("#endif"),
     ],
     includes=_ECI.includes,
     include_dirs=_ECI.include_dirs,
@@ -1521,6 +1542,7 @@ class opcode_ids:
 
 # pyerrors.h
 PyExc_SystemError = rffi.CConstant("PyExc_SystemError", PyObject_P)
+PyExc_TypeError = rffi.CConstant("PyExc_TypeError", PyObject_P)
 
 # traceback.h
 PyTraceBack_Here = rffi.llexternal("PyTraceBack_Here", [PyFrameObject_P], rffi.INT, **_llextkws)

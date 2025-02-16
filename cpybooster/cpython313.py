@@ -2484,6 +2484,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define Py_BUILD_CORE"),
         _unique_str("#endif"),
         _unique_str("#include <opcode_ids.h>"),
+        _unique_str("#include <internal/pycore_call.h>"),
         _unique_str("#include <internal/pycore_ceval.h>"),
         _unique_str("#include <internal/pycore_pyerrors.h>"),
         _unique_str("#include <internal/pycore_opcode_metadata.h>"),
@@ -2494,10 +2495,13 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define EMPTY_CONST_CHARP \"\""),
         _unique_str("#define _STR_RETURN_WITHOUT_EXCEPTION \"error return without exception set\""),
         _unique_str("#define _STR_UNKNOWN_OPCODE \"%U:%d: unknown opcode %d\""),
+        _unique_str("#define _STR_NO_AENTER \"'%.200s' object does not support the asynchronous context manager protocol\""),
+        _unique_str("#define _STR_NO_AEXIT \"'%.200s' object does not support the asynchronous context manager protocol (missed __aexit__ method)\""),
         _unique_str("#define _INT_DECLARE() 0"),
         _unique_str("#define _INT_ADDRESS(var) &(var)"),
         _unique_str("#define _POINTER_ADD(ptr, n) (ptr) + (n)"),
         _unique_str("#define _POINTER_SUB(ptr, n) (ptr) - (n)"),
+        _unique_str("#define _POINTER_INPLACE_ADD(ptr, n) (ptr) += (n)"),
         _unique_str("#define _INIT_NULL_PTR() NULL"),
         _unique_str("#define _GET_FRAME_INSTR_PTR(frame) (frame)->instr_ptr"),
         _unique_str("#define _GET_INSTR_PTR_OPCODE(next_instr) (next_instr)->op.code"),
@@ -2507,6 +2511,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("        PAUSE_ADAPTIVE_COUNTER(cache->counter); \\"),
         _unique_str("    }"),
         _unique_str("#define _GET_CODE_OBJECT_ORIGINAL_OPCODE(code, here) (code)->_co_monitoring->lines[(int)((here) - _PyCode_CODE((code)))].original_opcode"),
+        _unique_str("#define _CPYBOOSTER_Py_ID(NAME) &_Py_ID(NAME)"),
         _unique_str("// Python/ceval_macros.h"),
         _unique_str("#define INSTR_OFFSET(next_instr, frame)    ((int)((next_instr) - _PyCode_CODE(_PyFrame_GetCode((frame)))))"),
         _unique_str("#define NEXTOPARG(next_instr, opcode, oparg)  do { \\"),
@@ -2618,6 +2623,10 @@ _PyErr_Occurred = rffi.llexternal("_PyErr_Occurred", [cpython.PyThreadState_P], 
 _PyErr_SetString = rffi.llexternal("_PyErr_SetString", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP], lltype.Void, **cpython._llextkws)
 _PyErr_GetRaisedException = rffi.llexternal("_PyErr_GetRaisedException", [cpython.PyThreadState_P], cpython.PyObject_P, **cpython._llextkws)
 _PyErr_Format_PyObject_Int_Uchar = rffi.llexternal("_PyErr_Format", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP, cpython.PyObject_P, rffi.INT, rffi.UCHAR], cpython.PyObject_P, **cpython._llextkws)
+_PyErr_Format_Constccharp = rffi.llexternal("_PyErr_Format", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP, rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
+_PyObject_CallNoArgs = rffi.llexternal("_PyObject_CallNoArgs", [cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
+_PyObject_LookupSpecial = rffi.llexternal("_PyObject_LookupSpecial", [cpython.PyObject_P, cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
+_Py_ID = rffi.llexternal("_CPYBOOSTER_Py_ID", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
 
 get_exception_handler = rffi.llexternal("get_exception_handler", [cpython.PyCodeObject_P, rffi.INT, rffi.INT_realP, rffi.INT_realP, rffi.INT_realP], rffi.INT, **cpython._llextkws)
 monitor_reraise = rffi.llexternal("monitor_reraise", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
@@ -2626,9 +2635,14 @@ monitor_unwind = rffi.llexternal("monitor_unwind", [cpython.PyThreadState_P, cpy
 monitor_handled = rffi.llexternal("monitor_handled", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython.PyObject_P], rffi.INT, **cpython._llextkws)
 monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
+__aenter__ = rffi.CConstant("__aenter__", rffi.CONST_CCHARP)
+__aexit__ = rffi.CConstant("__aexit__", rffi.CONST_CCHARP)
+
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
 _STR_RETURN_WITHOUT_EXCEPTION = rffi.CConstant("_STR_RETURN_WITHOUT_EXCEPTION", rffi.CONST_CCHARP)
 _STR_UNKNOWN_OPCODE = rffi.CConstant("_STR_UNKNOWN_OPCODE", rffi.CONST_CCHARP)
+_STR_NO_AENTER = rffi.CConstant("_STR_NO_AENTER", rffi.CONST_CCHARP)
+_STR_NO_AEXIT = rffi.CConstant("_STR_NO_AEXIT", rffi.CONST_CCHARP)
 _INT_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.INT, **cpython._llextkws)
 _UINT8_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.UCHAR, **cpython._llextkws)
 _INT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [rffi.INT], rffi.INT_realP, **cpython._llextkws)
@@ -2636,6 +2650,7 @@ _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P,
 _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _INSTR_PTR_ADD = rffi.llexternal("_POINTER_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INSTR_PTR_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
+_INSTR_PTR_INPLACE_ADD = rffi.llexternal("_POINTER_INPLACE_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _GET_INSTR_PTR_OPCODE = rffi.llexternal("_GET_INSTR_PTR_OPCODE", [cpython._Py_CODEUNIT_P], rffi.UCHAR, **cpython._llextkws)
 _GET_CODE_OBJECT_ORIGINAL_OPCODE = rffi.llexternal("_GET_CODE_OBJECT_ORIGINAL_OPCODE", [cpython.PyCodeObject_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
@@ -2664,18 +2679,6 @@ STACK_GROW = rffi.llexternal("STACK_GROW", [rffi.CArrayPtr(cpython.PyObject_P), 
 STACK_SHRINK = rffi.llexternal("STACK_SHRINK", [rffi.CArrayPtr(cpython.PyObject_P), rffi.INT], lltype.Void, **cpython._llextkws)
 
 PY_EVAL_C_STACK_UNITS = 2
-# region goto labels
-START_FRAME = 1
-RESUME_FRAME = 2
-POP_4_ERROR = 3
-POP_3_ERROR = 4
-POP_2_ERROR = 5
-POP_1_ERROR = 6
-ERROR = 7
-EXCEPTION_UNWIND = 8
-EXIT_UNWIND = 9
-RESUME_WITH_ERROR = 10
-# endregion goto labels
 
 
 def eval_frame(tstate, frame, throwflag):
@@ -2716,7 +2719,6 @@ def eval_frame(tstate, frame, throwflag):
         monitor_throw(tstate, frame, frame.c_instr_ptr)
         return _resume_with_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
-    # lltype.free(entry_frame, flavor="raw", track_allocation=False)
     return _start_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
@@ -2736,7 +2738,11 @@ def _resume_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_p
 
 
 def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
-    if llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
+    if llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BEFORE_ASYNC_WITH):
+        return _target_before_async_with(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
+        return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
         prev = _GET_FRAME_INSTR_PTR(frame)
         frame.c_instr_ptr = next_instr
         here = _GET_FRAME_INSTR_PTR(frame)
@@ -2777,6 +2783,30 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
     # or goto error.
     cpython.Py_UNREACHABLE()
     return lltype.nullptr(cpython.PyObject)
+
+
+@always_inline
+def _pop_4_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    return _pop_3_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _pop_3_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    return _pop_1_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _pop_1_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline
@@ -2858,3 +2888,48 @@ def _resume_with_error(tstate, frame, entry_frame, opcode, oparg, next_instr, st
     next_instr = _GET_FRAME_INSTR_PTR(frame)
     stack_pointer = _PyFrame_GetStackPointer(frame)
     return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_before_async_with(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    mgr = lltype.nullptr(cpython.PyObject)
+    exit = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    mgr = TOP(stack_pointer)
+    enter = _PyObject_LookupSpecial(mgr, _Py_ID(__aenter__))
+    if llop.ptr_iszero(lltype.Bool, enter):
+        if llop.ptr_nonzero(lltype.Bool, _PyErr_Occurred(tstate)):
+            _PyErr_Format_Constccharp(tstate, cpython.PyExc_TypeError, _STR_NO_AENTER, cpython.Py_TYPE(mgr).c_tp_name)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    exit = _PyObject_LookupSpecial(mgr, _Py_ID(__aexit__))
+    if llop.ptr_iszero(lltype.Bool, exit):
+        if llop.ptr_nonzero(lltype.Bool, _PyErr_Occurred(tstate)):
+            _PyErr_Format_Constccharp(tstate, cpython.PyExc_TypeError, _STR_NO_AEXIT, cpython.Py_TYPE(mgr).c_tp_name)
+        cpython.Py_DECREF(enter)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    cpython.Py_DECREF(mgr)
+    res = cpython.PyObject_CallNoArgs(enter)
+    cpython.Py_DECREF(enter)
+    if llop.ptr_iszero(lltype.Bool, res):
+        cpython.Py_DECREF(exit)
+        return _pop_1_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    SET_TOP(stack_pointer, exit)
+    POKE(stack_pointer, r_int32(0), res)
+    STACK_GROW(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    retval = lltype.nullptr(cpython.PyObject)
+    retval = TOP(stack_pointer)
+    # Restore previous frame and return.
+    tstate.c_current_frame = frame.c_previous
+    tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, PY_EVAL_C_STACK_UNITS)
+    lltype.free(entry_frame, flavor="raw", track_allocation=False)
+    return retval
