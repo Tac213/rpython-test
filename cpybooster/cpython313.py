@@ -2239,6 +2239,9 @@ def _unique_str(s):
     assert f
     f = f.f_back
     assert f
+    if s.endswith("\\"):
+        s = s[:-1]
+        return "{}{}/* FILE: {} LINE: {} */  \\".format(s, "  " if s else "", __file__, f.f_lineno)
     return "{}{}/* FILE: {} LINE: {} */".format(s, "  " if s else "", __file__, f.f_lineno)
 
 
@@ -2250,37 +2253,51 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#endif"),
         _unique_str("#include <internal/pycore_ceval.h>"),
         _unique_str("#include <internal/pycore_pyerrors.h>"),
+        _unique_str("#include <internal/pycore_pyatomic_ft_wrappers.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
         _unique_str("#define EMPTY_CONST_CHARP \"\""),
         _unique_str("#define _STR_RETURN_WITHOUT_EXCEPTION \"error return without exception set\""),
         _unique_str("#define _INT_DECLARE() 0"),
-        _unique_str("#define _INT_ADDRESS(var) &var"),
-        _unique_str("#define _POINTER_ADD(ptr, n) ptr + n"),
-        _unique_str("#define _POINTER_SUB(ptr, n) ptr - n"),
+        _unique_str("#define _INT_ADDRESS(var) &(var)"),
+        _unique_str("#define _POINTER_ADD(ptr, n) (ptr) + (n)"),
+        _unique_str("#define _POINTER_SUB(ptr, n) (ptr) - (n)"),
         _unique_str("#define _INIT_NULL_PTR() NULL"),
-        _unique_str("#define _GET_FRAME_INSTR_PTR(frame) frame->instr_ptr"),
+        _unique_str("#define _GET_FRAME_INSTR_PTR(frame) (frame)->instr_ptr"),
         _unique_str("// Python/ceval_macros.h"),
-        _unique_str("#define INSTR_OFFSET(next_instr, frame)    ((int)(next_instr - _PyCode_CODE(_PyFrame_GetCode(frame))))"),
-        _unique_str("#define STACK_LEVEL(stack_pointer, frame)  ((int)(stack_pointer - _PyFrame_Stackbase(frame)))"),
-        _unique_str("#define STACK_SIZE(frame)                  (_PyFrame_GetCode(frame)->co_stacksize)"),
-        _unique_str("#define EMPTY(stack_pointer, frame)        (STACK_LEVEL(stack_pointer, frame) == 0)"),
-        _unique_str("#define TOP(stack_pointer)                 (stack_pointer[-1])"),
-        _unique_str("#define SECOND(stack_pointer)              (stack_pointer[-2])"),
-        _unique_str("#define THIRD(stack_pointer)               (stack_pointer[-3])"),
-        _unique_str("#define FOURTH(stack_pointer)              (stack_pointer[-4])"),
-        _unique_str("#define PEEK(stack_pointer, n)             (stack_pointer[-(n)])"),
-        _unique_str("#define POKE(stack_pointer, n, v)          (stack_pointer[-(n)] = (v))"),
-        _unique_str("#define SET_TOP(stack_pointer, v)          (stack_pointer[-1] = (v))"),
-        _unique_str("#define SET_SECOND(stack_pointer, v)       (stack_pointer[-2] = (v))"),
-        _unique_str("#define BASIC_STACKADJ(stack_pointer, n)   (stack_pointer += n)"),
-        _unique_str("#define BASIC_PUSH(stack_pointer, v)       (*stack_pointer++ = (v))"),
-        _unique_str("#define BASIC_POP(stack_pointer)           (*--stack_pointer)"),
-        _unique_str("#define PUSH(stack_pointer, v)             BASIC_PUSH(stack_pointer, v)"),
-        _unique_str("#define POP(stack_pointer)                 BASIC_POP(stack_pointer)"),
-        _unique_str("#define STACK_GROW(stack_pointer, n)       BASIC_STACKADJ(stack_pointer, n)"),
-        _unique_str("#define STACK_SHRINK(stack_pointer, n)     BASIC_STACKADJ(stack_pointer, -(n))"),
+        _unique_str("#define INSTR_OFFSET(next_instr, frame)    ((int)((next_instr) - _PyCode_CODE(_PyFrame_GetCode((frame)))))"),
+        _unique_str("#define NEXTOPARG(next_instr, opcode, oparg)  do { \\"),
+        _unique_str("        _Py_CODEUNIT word  = {.cache = FT_ATOMIC_LOAD_UINT16_RELAXED(*(uint16_t*)(next_instr))}; \\"),
+        _unique_str("        (opcode) = word.op.code; \\"),
+        _unique_str("        (oparg) = word.op.arg; \\"),
+        _unique_str("    } while (0)"),
+        _unique_str(""),
+        _unique_str("#define DISPATCH(next_instr, opcode, oparg) \\"),
+        _unique_str("    { \\"),
+        _unique_str("        NEXTOPARG((next_instr), (opcode), (oparg)); \\"),
+        _unique_str("        PRE_DISPATCH_GOTO(); \\"),
+        _unique_str("    }"),
+        _unique_str(""),
+        _unique_str("#define PRE_DISPATCH_GOTO() ((void)0)"),
+        _unique_str("#define STACK_LEVEL(stack_pointer, frame)  ((int)((stack_pointer) - _PyFrame_Stackbase((frame))))"),
+        _unique_str("#define STACK_SIZE(frame)                  (_PyFrame_GetCode((frame))->co_stacksize)"),
+        _unique_str("#define EMPTY(stack_pointer, frame)        (STACK_LEVEL((stack_pointer), (frame)) == 0)"),
+        _unique_str("#define TOP(stack_pointer)                 ((stack_pointer)[-1])"),
+        _unique_str("#define SECOND(stack_pointer)              ((stack_pointer)[-2])"),
+        _unique_str("#define THIRD(stack_pointer)               ((stack_pointer)[-3])"),
+        _unique_str("#define FOURTH(stack_pointer)              ((stack_pointer)[-4])"),
+        _unique_str("#define PEEK(stack_pointer, n)             ((stack_pointer)[-(n)])"),
+        _unique_str("#define POKE(stack_pointer, n, v)          ((stack_pointer)[-(n)] = (v))"),
+        _unique_str("#define SET_TOP(stack_pointer, v)          ((stack_pointer)[-1] = (v))"),
+        _unique_str("#define SET_SECOND(stack_pointer, v)       ((stack_pointer)[-2] = (v))"),
+        _unique_str("#define BASIC_STACKADJ(stack_pointer, n)   ((stack_pointer) += n)"),
+        _unique_str("#define BASIC_PUSH(stack_pointer, v)       (*(stack_pointer)++ = (v))"),
+        _unique_str("#define BASIC_POP(stack_pointer)           (*--(stack_pointer))"),
+        _unique_str("#define PUSH(stack_pointer, v)             BASIC_PUSH((stack_pointer), (v))"),
+        _unique_str("#define POP(stack_pointer)                 BASIC_POP((stack_pointer))"),
+        _unique_str("#define STACK_GROW(stack_pointer, n)       BASIC_STACKADJ((stack_pointer), n)"),
+        _unique_str("#define STACK_SHRINK(stack_pointer, n)     BASIC_STACKADJ((stack_pointer), -(n))"),
         _unique_str(""),
         _unique_str("static inline int _Py_EnterRecursivePy(PyThreadState *tstate) {"),
         _unique_str("    return (tstate->py_recursion_remaining-- <= 0) && _Py_CheckRecursiveCallPy(tstate);"),
@@ -2343,6 +2360,7 @@ monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpyth
 EMPTY_CONST_CHARP = rffi.CConstant("EMPTY_CONST_CHARP", rffi.CONST_CCHARP)
 _STR_RETURN_WITHOUT_EXCEPTION = rffi.CConstant("_STR_RETURN_WITHOUT_EXCEPTION", rffi.CONST_CCHARP)
 _INT_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.INT, **cpython._llextkws)
+_UINT8_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.UCHAR, **cpython._llextkws)
 _INT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [rffi.INT], rffi.INT_realP, **cpython._llextkws)
 _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
@@ -2351,6 +2369,8 @@ _INSTR_PTR_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, rffi.I
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 
 INSTR_OFFSET = rffi.llexternal("INSTR_OFFSET", [cpython._Py_CODEUNIT_P, cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
+DISPATCH = rffi.llexternal("DISPATCH", [cpython._Py_CODEUNIT_P, rffi.UCHAR, rffi.INT], lltype.Void, **cpython._llextkws)
+PRE_DISPATCH_GOTO = rffi.llexternal("PRE_DISPATCH_GOTO", [], lltype.Void, **cpython._llextkws)
 STACK_LEVEL = rffi.llexternal("STACK_LEVEL", [rffi.CArrayPtr(cpython.PyObject_P), cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
 STACK_SIZE = rffi.llexternal("STACK_SIZE", [cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
 EMPTY = rffi.llexternal("EMPTY", [rffi.CArrayPtr(cpython.PyObject_P), cpython._PyInterpreterFrame_P], lltype.Bool, **cpython._llextkws)
@@ -2402,6 +2422,8 @@ def eval_frame(tstate, frame, throwflag):
     frame.c_previous = entry_frame
     tstate.c_current_frame = frame
 
+    opcode = _UINT8_DECLARE()
+    oparg = _INT_DECLARE()
     next_instr = _INIT_NEXT_INSTR()
     stack_pointer = _INIT_STACK_POINTER()
 
@@ -2409,46 +2431,42 @@ def eval_frame(tstate, frame, throwflag):
     if _Py_EnterRecursiveCallTstate(tstate, EMPTY_CONST_CHARP):
         tstate.c_c_recursion_remaining = llop.int_sub(rffi.INT, tstate.c_c_recursion_remaining, 1)
         tstate.c_py_recursion_remaining = llop.int_sub(rffi.INT, tstate.c_py_recursion_remaining, 1)
-        return _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+        return _exit_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
     if llop.int_is_true(lltype.Bool, throwflag):
         if _Py_EnterRecursivePy(tstate):
-            return _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+            return _exit_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
         # Because this avoids the RESUME,
         # we need to update instrumentation
         _Py_Instrument(_PyFrame_GetCode(frame), tstate.c_interp)
         # TO DO -- Monitor throw entry.
         monitor_throw(tstate, frame, frame.c_instr_ptr)
-        return _resume_with_error(tstate, frame, entry_frame, next_instr, stack_pointer)
+        return _resume_with_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
-    lltype.free(entry_frame, flavor="raw", track_allocation=False)
+    # lltype.free(entry_frame, flavor="raw", track_allocation=False)
+    return _start_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _start_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    if _Py_EnterRecursivePy(tstate):
+        return _exit_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    next_instr = _GET_FRAME_INSTR_PTR(frame)
+    return _resume_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _resume_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    stack_pointer = _PyFrame_GetStackPointer(frame)
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
     return lltype.nullptr(cpython.PyObject)
 
 
 @always_inline
-def _goto(label, tstate, frame, entry_frame):
-    """
-    Implement the 'goto' statement of C.
-    """
-    if label == EXIT_UNWIND:
-        _Py_LeaveRecursiveCallPy(tstate)
-        # GH-99729: We need to unlink the frame *before* clearing it:
-        dying = frame
-        tstate.c_current_frame = dying.c_previous
-        frame = tstate.c_current_frame
-        _PyEval_FrameClearAndPop(tstate, dying)
-        frame.c_return_offset = r_uint16(0)
-        if llop.ptr_eq(lltype.Bool, frame, entry_frame):
-            # Restore previous frame and exit
-            tstate.c_current_frame = frame.c_previous
-            tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, PY_EVAL_C_STACK_UNITS)
-            lltype.free(entry_frame, flavor="raw", track_allocation=False)
-            return lltype.nullptr(cpython.PyObject)
-    return lltype.nullptr(cpython.PyObject)
-
-
-@always_inline
-def _error(tstate, frame, entry_frame, next_instr, stack_pointer):
+def _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
     # Double-check exception status.
     if llop.ptr_nonzero(lltype.Bool, _PyErr_Occurred(tstate)):
         _PyErr_SetString(tstate, cpython.PyExc_SystemError, _STR_RETURN_WITHOUT_EXCEPTION)
@@ -2458,11 +2476,11 @@ def _error(tstate, frame, entry_frame, next_instr, stack_pointer):
         if llop.ptr_nonzero(lltype.Bool, f):
             cpython.PyTraceBack_Here(f)
     _PyEval_MonitorRaise(tstate, frame, lltype.direct_ptradd(next_instr, -1))
-    return _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+    return _exception_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 # @always_inline
-def _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
+def _exception_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
     offset = llop.int_sub(rffi.INT, INSTR_OFFSET(next_instr, frame), 1)
     level = _INT_DECLARE()
     handler = _INT_DECLARE()
@@ -2476,7 +2494,7 @@ def _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
             cpython.Py_XDECREF(o)
         _PyFrame_SetStackPointer(frame, stack_pointer)
         monitor_unwind(tstate, frame, _INSTR_PTR_SUB(next_instr, r_int32(1)))
-        return _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+        return _exit_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
     new_top = rffi.ptradd(_PyFrame_Stackbase(frame), level)
     while llop.adr_gt(lltype.Bool, stack_pointer, new_top):
@@ -2486,7 +2504,7 @@ def _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
         frame_lasti = _PyInterpreterFrame_LASTI(frame)
         py_lasti = cpython.PyLong_FromLong(frame_lasti)
         if llop.ptr_iszero(lltype.Bool, py_lasti):
-            return _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+            return _exception_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
         PUSH(stack_pointer, py_lasti)
 
     # Make the raw exception data
@@ -2498,13 +2516,13 @@ def _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
     next_instr = _INSTR_PTR_ADD(_PyCode_CODE(_PyFrame_GetCode(frame)), handler)
 
     if llop.int_lt(lltype.Bool, monitor_handled(tstate, frame, next_instr, exc), 0):
-        return _exception_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
-    # The next line should be replace with DISPATCH
-    return _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer)
+        return _exception_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline
-def _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
+def _exit_unwind(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
     _Py_LeaveRecursiveCallPy(tstate)
     # GH-99729: We need to unlink the frame *before* clearing it:
     dying = frame
@@ -2518,11 +2536,11 @@ def _exit_unwind(tstate, frame, entry_frame, next_instr, stack_pointer):
         tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, PY_EVAL_C_STACK_UNITS)
         lltype.free(entry_frame, flavor="raw", track_allocation=False)
         return lltype.nullptr(cpython.PyObject)
-    return _resume_with_error(tstate, frame, entry_frame, next_instr, stack_pointer)
+    return _resume_with_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline
-def _resume_with_error(tstate, frame, entry_frame, next_instr, stack_pointer):
+def _resume_with_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
     next_instr = _GET_FRAME_INSTR_PTR(frame)
     stack_pointer = _PyFrame_GetStackPointer(frame)
-    return _error(tstate, frame, entry_frame, next_instr, stack_pointer)
+    return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
