@@ -566,6 +566,37 @@ def _unique_str(s):
     return "{}{}/* FILE: {} LINE: {} */".format(s, "  " if s else "", __file__, f.f_lineno)
 
 
+_CODE_ECI = ExternalCompilationInfo(
+    pre_include_bits=_ECI.pre_include_bits,
+    post_include_bits=[
+        _unique_str("#ifndef Py_BUILD_CORE"),
+        _unique_str("#define Py_BUILD_CORE"),
+        _unique_str("#endif"),
+        _unique_str("#include <internal/pycore_code.h>"),
+        _unique_str("#ifdef Py_BUILD_CORE"),
+        _unique_str("#undef Py_BUILD_CORE"),
+        _unique_str("#endif"),
+    ],
+    includes=_ECI.includes,
+    include_dirs=_ECI.include_dirs,
+    libraries=_ECI.libraries,
+    library_dirs=_ECI.library_dirs,
+)
+
+
+class _CPyCodeConfig:
+    """
+    internal/pycore_code.h
+    """
+    _compilation_info_ = _CODE_ECI
+
+    ENABLE_SPECIALIZATION = rffi_platform.DefinedConstantInteger("ENABLE_SPECIALIZATION")
+
+
+config = rffi_platform.configure(_CPyCodeConfig)
+ENABLE_SPECIALIZATION = config["ENABLE_SPECIALIZATION"]
+
+
 _FRAME_ECI = ExternalCompilationInfo(
     pre_include_bits=_ECI.pre_include_bits,
     post_include_bits=[
