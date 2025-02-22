@@ -2749,6 +2749,7 @@ _Py_DECREF_NO_DEALLOC = rffi.llexternal("_Py_DECREF_NO_DEALLOC", [cpython.PyObje
 _PyFloat_ExactDealloc = rffi.llexternal("_PyFloat_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 
 _PyLong_Add = rffi.llexternal("_PyLong_Add", [cpython.PyLongObject_P, cpython.PyLongObject_P], cpython.PyObject_P, **cpython._llextkws)
+_PyLong_Multiply = rffi.llexternal("_PyLong_Multiply", [cpython.PyLongObject_P, cpython.PyLongObject_P], cpython.PyObject_P, **cpython._llextkws)
 
 _PyUnicode_ExactDealloc = rffi.llexternal("_PyUnicode_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 
@@ -2899,6 +2900,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_op_inplace_add_unicode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_MULTIPLY_FLOAT):
         return _target_binary_op_multiply_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_MULTIPLY_INT):
+        return _target_binary_op_multiply_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
@@ -3329,6 +3332,33 @@ def _target_binary_op_multiply_float(tstate, frame, entry_frame, opcode, oparg, 
             return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
         _Py_DECREF_NO_DEALLOC(left)
         _Py_DECREF_NO_DEALLOC(right)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_op_multiply_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    right = lltype.nullptr(cpython.PyObject)
+    left = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # _GUARD_BOTH_INT
+    right = TOP(stack_pointer)
+    left = SECOND(stack_pointer)
+    if not cpython.PyLong_CheckExact(left):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyLong_CheckExact(right):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Skip 1 cache entry
+    # _BINARY_OP_MULTIPLY_INT
+    res = _PyLong_Multiply(rffi.cast(cpython.PyLongObject_P, left), rffi.cast(cpython.PyLongObject_P, right))
+    _Py_DECREF_SPECIALIZED(right, rffi.cast(cpython.destructor, cpython.PyObject_Free))
+    _Py_DECREF_SPECIALIZED(left, rffi.cast(cpython.destructor, cpython.PyObject_Free))
+    if llop.ptr_iszero(lltype.Bool, res):
+        return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
