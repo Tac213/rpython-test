@@ -444,6 +444,7 @@ Py_TYPE = rffi.llexternal("Py_TYPE", [PyObject_P], PyTypeObject_P, **_llextkws)
 # abstract.h
 PyObject_CallNoArgs = rffi.llexternal("PyObject_CallNoArgs", [PyObject_P], PyObject_P, **_llextkws)
 PyObject_GetItem = rffi.llexternal("PyObject_GetItem", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyObject_SetItem = rffi.llexternal("PyObject_SetItem", [PyObject_P, PyObject_P, PyObject_P], rffi.INT, **_llextkws)
 
 
 class _CPyModuleObjectConfig:

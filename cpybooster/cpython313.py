@@ -2911,6 +2911,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
+        return _target_store_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
         prev = _GET_FRAME_INSTR_PTR(frame)
         frame.c_instr_ptr = next_instr
@@ -3451,6 +3453,10 @@ def _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, 
     # cpybooster_cpython313.obj : error LNK2019: unresolved external symbol __imp__PyBuildSlice_ConsumeRefs referenced in function pypy_g__dispatch_opcode
     # Use the public API `PySlice_New` instead.
     slice = cpython.PySlice_New(start, stop, cpython.Py_None)
+    # `PySlice_New` does `Py_NewRef` for `start` and `stop`.
+    # So we need to do `Py_DECREF` for `start` and `stop` as well.
+    cpython.Py_DECREF(start)
+    cpython.Py_DECREF(stop)
     # Can't use ERROR_IF() here, because we haven't
     # DECREF'ed container yet, and we still own slice.
     if llop.ptr_iszero(lltype.Bool, slice):
@@ -3458,10 +3464,6 @@ def _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, 
     else:
         res = cpython.PyObject_GetItem(container, slice)
         cpython.Py_DECREF(slice)
-    # `PySlice_New` does `Py_NewRef` for `start` and `stop`.
-    # So we need to do `Py_DECREF` for `start` and `stop` as well.
-    cpython.Py_DECREF(start)
-    cpython.Py_DECREF(stop)
     cpython.Py_DECREF(container)
     if llop.ptr_iszero(lltype.Bool, res):
         return _pop_3_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
@@ -3482,3 +3484,38 @@ def _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_point
     tstate.c_c_recursion_remaining = llop.int_add(rffi.INT, tstate.c_c_recursion_remaining, PY_EVAL_C_STACK_UNITS)
     lltype.free(entry_frame, flavor="raw", track_allocation=False)
     return retval
+
+
+@always_inline
+def _target_store_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    stop = lltype.nullptr(cpython.PyObject)
+    start = lltype.nullptr(cpython.PyObject)
+    container = lltype.nullptr(cpython.PyObject)
+    v = lltype.nullptr(cpython.PyObject)
+    stop = TOP(stack_pointer)
+    start = SECOND(stack_pointer)
+    container = THIRD(stack_pointer)
+    v = FOURTH(stack_pointer)
+    # `_PyBuildSlice_ConsumeRefs` can't be used, the following error will be encoutered:
+    # cpybooster_cpython313.obj : error LNK2019: unresolved external symbol __imp__PyBuildSlice_ConsumeRefs referenced in function pypy_g__dispatch_opcode
+    # Use the public API `PySlice_New` instead.
+    slice = cpython.PySlice_New(start, stop, cpython.Py_None)
+    # `PySlice_New` does `Py_NewRef` for `start` and `stop`.
+    # So we need to do `Py_DECREF` for `start` and `stop` as well.
+    cpython.Py_DECREF(start)
+    cpython.Py_DECREF(stop)
+    err = _INT_DECLARE()
+    if llop.ptr_iszero(lltype.Bool, slice):
+        err = r_int32(1)
+    else:
+        err = cpython.PyObject_SetItem(container, slice, v)
+        cpython.Py_DECREF(slice)
+    cpython.Py_DECREF(v)
+    cpython.Py_DECREF(container)
+    if llop.int_is_true(lltype.Bool, err):
+        return _pop_4_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    STACK_SHRINK(stack_pointer, r_int32(4))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
