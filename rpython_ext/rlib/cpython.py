@@ -99,6 +99,7 @@ config = rffi_platform.configure(_CPyObjectConfig)
 PyObject = config["PyObject"]
 PyObject_P = lltype.Ptr(PyObject)
 
+Py_REFCNT = rffi.llexternal("Py_REFCNT", [PyObject_P], rffi.INT, **_llextkws)
 Py_INCREF = rffi.llexternal("Py_INCREF", [PyObject_P], lltype.Void, **_llextkws)
 Py_DECREF = rffi.llexternal("Py_DECREF", [PyObject_P], lltype.Void, **_llextkws)
 Py_XINCREF = rffi.llexternal("Py_XINCREF", [PyObject_P], lltype.Void, **_llextkws)
@@ -801,8 +802,15 @@ _PyInterpreterState_SetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_SetE
 _PyInterpreterState_GetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_GetEvalFrameFunc", [PyInterpreterState_P], _PyFrameEvalFunction, **_llextkws)
 
 # Functions in: longobject.h
+PyLong_Check = rffi.llexternal("PyLong_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyLong_CheckExact = rffi.llexternal("PyLong_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
 PyLong_FromLong = rffi.llexternal("PyLong_FromLong", [rffi.LONG], PyObject_P, **_llextkws)
 PyLong_AsLong = rffi.llexternal("PyLong_AsLong", [PyObject_P], rffi.LONG, **_llextkws)
+
+# Functions in floatobject.h
+PyFloat_Check = rffi.llexternal("PyFloat_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyFloat_CheckExact = rffi.llexternal("PyFloat_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyFloat_FromDouble = rffi.llexternal("PyFloat_FromDouble", [lltype.Float], PyObject_P, **_llextkws)
 
 # Contants defined in object.h
 Py_None = rffi.CConstant("Py_None", PyObject_P)

@@ -2569,6 +2569,8 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#include <internal/pycore_pyerrors.h>"),
         _unique_str("#include <internal/pycore_opcode_metadata.h>"),
         _unique_str("#include <internal/pycore_pyatomic_ft_wrappers.h>"),
+        _unique_str("#include <internal/pycore_object.h>"),
+        _unique_str("#include <internal/pycore_floatobject.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
@@ -2594,6 +2596,8 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("        PAUSE_ADAPTIVE_COUNTER(cache->counter); \\"),
         _unique_str("    }"),
         _unique_str("#define _GET_CODE_OBJECT_ORIGINAL_OPCODE(code, here) (code)->_co_monitoring->lines[(int)((here) - _PyCode_CODE((code)))].original_opcode"),
+        _unique_str("#define _GET_FLOAT_OBJECT_VALUE(obj) ((PyFloatObject *)obj)->ob_fval"),
+        _unique_str("#define _SET_FLOAT_OBJECT_VALUE(obj, value) ((PyFloatObject *)obj)->ob_fval = value"),
         _unique_str("#define _CPYBOOSTER_Py_ID(NAME) &_Py_ID(NAME)"),
         _unique_str("#define _CPYBOOSTER_PyEval_BinaryOps(oparg, lhs, rhs) _PyEval_BinaryOps[(oparg)]((lhs), (rhs))"),
         _unique_str("#define _CPYBOOSTER_PyEval_ConversionFuncs(oparg, value) _PyEval_ConversionFuncs[(oparg)]((value))"),
@@ -2731,6 +2735,11 @@ _PyObject_LookupSpecial = rffi.llexternal("_PyObject_LookupSpecial", [cpython.Py
 _Py_ID = rffi.llexternal("_CPYBOOSTER_Py_ID", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
 _Py_Specialize_BinaryOp = rffi.llexternal("_Py_Specialize_BinaryOp", [cpython.PyObject_P, cpython.PyObject_P, cpython._Py_CODEUNIT_P, rffi.INT, rffi.CArrayPtr(cpython.PyObject_P)], lltype.Void, **cpython._llextkws)
 
+_Py_DECREF_SPECIALIZED = rffi.llexternal("_Py_DECREF_SPECIALIZED", [cpython.PyObject_P, cpython.destructor], lltype.Void, **cpython._llextkws)
+_Py_DECREF_NO_DEALLOC = rffi.llexternal("_Py_DECREF_NO_DEALLOC", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
+
+_PyFloat_ExactDealloc = rffi.llexternal("_PyFloat_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
+
 read_u16_1 = rffi.llexternal("_CPYBOOSTER_read_u16_1", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_2 = rffi.llexternal("_CPYBOOSTER_read_u16_2", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_3 = rffi.llexternal("_CPYBOOSTER_read_u16_3", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
@@ -2766,6 +2775,8 @@ _INSTR_PTR_INPLACE_ADD = rffi.llexternal("_POINTER_INPLACE_ADD", [cpython._Py_CO
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _GET_INSTR_PTR_OPCODE = rffi.llexternal("_GET_INSTR_PTR_OPCODE", [cpython._Py_CODEUNIT_P], rffi.UCHAR, **cpython._llextkws)
 _GET_CODE_OBJECT_ORIGINAL_OPCODE = rffi.llexternal("_GET_CODE_OBJECT_ORIGINAL_OPCODE", [cpython.PyCodeObject_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
+_GET_FLOAT_OBJECT_VALUE = rffi.llexternal("_GET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P], lltype.Float, **cpython._llextkws)
+_SET_FLOAT_OBJECT_VALUE = rffi.llexternal("_SET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P, lltype.Float], lltype.Void, **cpython._llextkws)
 _ADVANCE_ADAPTIVE_COUNTER = rffi.llexternal("_ADVANCE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
@@ -2861,6 +2872,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_before_with(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP):
         return _target_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_ADD_FLOAT):
+        return _target_binary_op_add_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
@@ -3126,6 +3139,43 @@ def _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, 
     lhs = SECOND(stack_pointer)
     # _BINARY_OP
     return _specialized_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, lhs, rhs)
+
+
+@always_inline
+def _target_binary_op_add_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    right = lltype.nullptr(cpython.PyObject)
+    left = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # _GUARD_BOTH_FLOAT
+    right = TOP(stack_pointer)
+    left = SECOND(stack_pointer)
+    if not cpython.PyFloat_CheckExact(left):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyFloat_CheckExact(right):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Skip 1 cache entry
+    # _BINARY_OP_ADD_FLOAT
+    dres = _GET_FLOAT_OBJECT_VALUE(left) + _GET_FLOAT_OBJECT_VALUE(right)
+    if llop.int_eq(lltype.Bool, cpython.Py_REFCNT(left), 1):
+        _SET_FLOAT_OBJECT_VALUE(left, dres)
+        _Py_DECREF_SPECIALIZED(right, _PyFloat_ExactDealloc)
+        res = left
+    elif llop.int_eq(lltype.Bool, cpython.Py_REFCNT(right), 1):
+        _SET_FLOAT_OBJECT_VALUE(right, dres)
+        _Py_DECREF_NO_DEALLOC(left)
+        res = right
+    else:
+        res = cpython.PyFloat_FromDouble(dres)
+        if llop.ptr_iszero(lltype.Bool, res):
+            return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+        _Py_DECREF_NO_DEALLOC(left)
+        _Py_DECREF_NO_DEALLOC(right)
+    SET_SECOND(stack_pointer, res)
+    STACK_GROW(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline
