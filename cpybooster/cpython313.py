@@ -2907,6 +2907,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_op_subtract_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_SUBTRACT_INT):
         return _target_binary_op_subtract_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SLICE):
+        return _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
@@ -3430,6 +3432,41 @@ def _target_binary_op_subtract_int(tstate, frame, entry_frame, opcode, oparg, ne
         return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    stop = lltype.nullptr(cpython.PyObject)
+    start = lltype.nullptr(cpython.PyObject)
+    container = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    stop = TOP(stack_pointer)
+    start = SECOND(stack_pointer)
+    container = THIRD(stack_pointer)
+    # `_PyBuildSlice_ConsumeRefs` can't be used, the following error will be encoutered:
+    # cpybooster_cpython313.obj : error LNK2019: unresolved external symbol __imp__PyBuildSlice_ConsumeRefs referenced in function pypy_g__dispatch_opcode
+    # Use the public API `PySlice_New` instead.
+    slice = cpython.PySlice_New(start, stop, cpython.Py_None)
+    # Can't use ERROR_IF() here, because we haven't
+    # DECREF'ed container yet, and we still own slice.
+    if llop.ptr_iszero(lltype.Bool, slice):
+        res = lltype.nullptr(cpython.PyObject)
+    else:
+        res = cpython.PyObject_GetItem(container, slice)
+        cpython.Py_DECREF(slice)
+    # `PySlice_New` does `Py_NewRef` for `start` and `stop`.
+    # So we need to do `Py_DECREF` for `start` and `stop` as well.
+    cpython.Py_DECREF(start)
+    cpython.Py_DECREF(stop)
+    cpython.Py_DECREF(container)
+    if llop.ptr_iszero(lltype.Bool, res):
+        return _pop_3_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, r_int32(3), res)
+    STACK_SHRINK(stack_pointer, r_int32(2))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 

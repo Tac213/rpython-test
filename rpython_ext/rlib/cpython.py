@@ -443,6 +443,7 @@ Py_TYPE = rffi.llexternal("Py_TYPE", [PyObject_P], PyTypeObject_P, **_llextkws)
 
 # abstract.h
 PyObject_CallNoArgs = rffi.llexternal("PyObject_CallNoArgs", [PyObject_P], PyObject_P, **_llextkws)
+PyObject_GetItem = rffi.llexternal("PyObject_GetItem", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 
 
 class _CPyModuleObjectConfig:
@@ -844,6 +845,9 @@ PyUnicode_Check = rffi.llexternal("PyUnicode_Check", [PyObject_P], lltype.Bool, 
 PyUnicode_CheckExact = rffi.llexternal("PyUnicode_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
 PyUnicode_Concat = rffi.llexternal("PyUnicode_Concat", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 PyUnicode_Append = rffi.llexternal("PyUnicode_Append", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
+
+# Functions in sliceobject.h
+PySlice_New = rffi.llexternal("PySlice_New", [PyObject_P, PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 
 # Contants defined in object.h
 Py_None = rffi.CConstant("Py_None", PyObject_P)
