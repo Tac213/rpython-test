@@ -843,6 +843,7 @@ PyFloat_FromDouble = rffi.llexternal("PyFloat_FromDouble", [lltype.Float], PyObj
 PyUnicode_Check = rffi.llexternal("PyUnicode_Check", [PyObject_P], lltype.Bool, **_llextkws)
 PyUnicode_CheckExact = rffi.llexternal("PyUnicode_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
 PyUnicode_Concat = rffi.llexternal("PyUnicode_Concat", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyUnicode_Append = rffi.llexternal("PyUnicode_Append", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
 
 # Contants defined in object.h
 Py_None = rffi.CConstant("Py_None", PyObject_P)

@@ -2585,12 +2585,15 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define _STR_NO_EXIT \"'%.200s' object does not support the context manager protocol (missed __exit__ method)\""),
         _unique_str("#define _INT_DECLARE() 0"),
         _unique_str("#define _INT_ADDRESS(var) &(var)"),
+        _unique_str("#define _DEREFERENCE(var) *(var)"),
         _unique_str("#define _POINTER_ADD(ptr, n) (ptr) + (n)"),
         _unique_str("#define _POINTER_SUB(ptr, n) (ptr) - (n)"),
         _unique_str("#define _POINTER_INPLACE_ADD(ptr, n) (ptr) += (n)"),
         _unique_str("#define _INIT_NULL_PTR() NULL"),
         _unique_str("#define _GET_FRAME_INSTR_PTR(frame) (frame)->instr_ptr"),
         _unique_str("#define _GET_INSTR_PTR_OPCODE(next_instr) (next_instr)->op.code"),
+        _unique_str("#define _GET_INSTR_PTR_OPARG(next_instr) (next_instr)->op.arg"),
+        _unique_str("#define _GET_LOCAL_AS_ARRAY(frame, i) &GETLOCAL(frame, i)"),
         _unique_str("#define _ADVANCE_ADAPTIVE_COUNTER(instr_ptr) ADVANCE_ADAPTIVE_COUNTER((instr_ptr)[1].counter)"),
         _unique_str("#define _PAUSE_ADAPTIVE_COUNTER(next_instr) \\"),
         _unique_str("    { \\"),
@@ -2614,6 +2617,9 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("        (opcode) = word.op.code; \\"),
         _unique_str("        (oparg) = word.op.arg; \\"),
         _unique_str("    } while (0)"),
+        _unique_str(""),
+        _unique_str("#define JUMPBY(next_instr, x)       (next_instr += (x))"),
+        _unique_str("#define SKIP_OVER(next_instr, x)    (next_instr += (x))"),
         _unique_str(""),
         _unique_str("#define DISPATCH(next_instr, opcode, oparg) \\"),
         _unique_str("    { \\"),
@@ -2780,12 +2786,17 @@ _INSTR_PTR_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, rffi.I
 _INSTR_PTR_INPLACE_ADD = rffi.llexternal("_POINTER_INPLACE_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _GET_INSTR_PTR_OPCODE = rffi.llexternal("_GET_INSTR_PTR_OPCODE", [cpython._Py_CODEUNIT_P], rffi.UCHAR, **cpython._llextkws)
+_GET_INSTR_PTR_OPARG = rffi.llexternal("_GET_INSTR_PTR_OPARG", [cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
 _GET_CODE_OBJECT_ORIGINAL_OPCODE = rffi.llexternal("_GET_CODE_OBJECT_ORIGINAL_OPCODE", [cpython.PyCodeObject_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
 _GET_FLOAT_OBJECT_VALUE = rffi.llexternal("_GET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P], lltype.Float, **cpython._llextkws)
 _SET_FLOAT_OBJECT_VALUE = rffi.llexternal("_SET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P, lltype.Float], lltype.Void, **cpython._llextkws)
 _ADVANCE_ADAPTIVE_COUNTER = rffi.llexternal("_ADVANCE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
+_GET_LOCAL_AS_ARRAY = rffi.llexternal("_GET_LOCAL_AS_ARRAY", [cpython._PyInterpreterFrame_P, rffi.INT], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
+_DEREF_LOCAL_ARRAY = rffi.llexternal("_DEREFERENCE", [rffi.CArrayPtr(cpython.PyObject_P)], cpython.PyObject_P, **cpython._llextkws)
 
+JUMPBY = rffi.llexternal("JUMPBY", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
+SKIP_OVER = rffi.llexternal("SKIP_OVER", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
 INSTR_OFFSET = rffi.llexternal("INSTR_OFFSET", [cpython._Py_CODEUNIT_P, cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
 DISPATCH = rffi.llexternal("DISPATCH", [cpython._Py_CODEUNIT_P, rffi.UCHAR, rffi.INT], lltype.Void, **cpython._llextkws)
 DISPATCH_SAME_OPARG = rffi.llexternal("DISPATCH_SAME_OPARG", [cpython._Py_CODEUNIT_P, rffi.UCHAR], lltype.Void, **cpython._llextkws)
@@ -2884,6 +2895,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_op_add_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_ADD_UNICODE):
         return _target_binary_op_add_unicode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_INPLACE_ADD_UNICODE):
+        return _target_binary_op_inplace_add_unicode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
@@ -3108,7 +3121,7 @@ def _binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_poin
     if llop.ptr_iszero(lltype.Bool, res):
         return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     SET_SECOND(stack_pointer, res)
-    STACK_GROW(stack_pointer, r_int32(1))
+    STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
@@ -3183,7 +3196,7 @@ def _target_binary_op_add_float(tstate, frame, entry_frame, opcode, oparg, next_
         _Py_DECREF_NO_DEALLOC(left)
         _Py_DECREF_NO_DEALLOC(right)
     SET_SECOND(stack_pointer, res)
-    STACK_GROW(stack_pointer, r_int32(1))
+    STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
@@ -3210,7 +3223,7 @@ def _target_binary_op_add_int(tstate, frame, entry_frame, opcode, oparg, next_in
     if llop.ptr_iszero(lltype.Bool, res):
         return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     SET_SECOND(stack_pointer, res)
-    STACK_GROW(stack_pointer, r_int32(1))
+    STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
@@ -3237,7 +3250,48 @@ def _target_binary_op_add_unicode(tstate, frame, entry_frame, opcode, oparg, nex
     if llop.ptr_iszero(lltype.Bool, res):
         return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     SET_SECOND(stack_pointer, res)
-    STACK_GROW(stack_pointer, r_int32(1))
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_op_inplace_add_unicode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    right = lltype.nullptr(cpython.PyObject)
+    left = lltype.nullptr(cpython.PyObject)
+    # _GUARD_BOTH_UNICODE
+    right = TOP(stack_pointer)
+    left = SECOND(stack_pointer)
+    if not cpython.PyUnicode_CheckExact(left):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyUnicode_CheckExact(right):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Skip 1 cache entry
+    # _BINARY_OP_INPLACE_ADD_UNICODE
+    target_local = _GET_LOCAL_AS_ARRAY(frame, _GET_INSTR_PTR_OPARG(next_instr))
+    if not llop.ptr_eq(lltype.Bool, _DEREF_LOCAL_ARRAY(target_local), left):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Handle `left = left + right` or `left += right` for str.
+    #
+    # When possible, extend `left` in place rather than
+    # allocating a new PyUnicodeObject. This attempts to avoid
+    # quadratic behavior when one neglects to use str.join().
+    #
+    # If `left` has only two references remaining (one from
+    # the stack, one in the locals), DECREFing `left` leaves
+    # only the locals reference, so PyUnicode_Append knows
+    # that the string is safe to mutate.
+    #
+    cpython.PyUnicode_Append(target_local, right)
+    _Py_DECREF_SPECIALIZED(right, _PyUnicode_ExactDealloc)
+    if llop.ptr_iszero(lltype.Bool, _DEREF_LOCAL_ARRAY(target_local)):
+        return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # The STORE_FAST is already done.
+    # assert(next_instr->op.code == STORE_FAST);
+    SKIP_OVER(next_instr, r_int32(1))
+    STACK_SHRINK(stack_pointer, r_int32(2))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
