@@ -105,6 +105,24 @@ Py_DECREF = rffi.llexternal("Py_DECREF", [PyObject_P], lltype.Void, **_llextkws)
 Py_XINCREF = rffi.llexternal("Py_XINCREF", [PyObject_P], lltype.Void, **_llextkws)
 Py_XDECREF = rffi.llexternal("Py_XDECREF", [PyObject_P], lltype.Void, **_llextkws)
 
+
+class _CPyLongObjectConfig:
+    """
+    pytypedefs.h
+    """
+    _compilation_info_ = _ECI
+
+    PyLongObject = rffi_platform.Struct(
+        "PyLongObject",
+        [],
+    )
+
+
+config = rffi_platform.configure(_CPyLongObjectConfig)
+
+PyLongObject = config["PyLongObject"]
+PyLongObject_P = lltype.Ptr(PyLongObject)
+
 # object.h
 unaryfunc = lltype.Ptr(lltype.FuncType([PyObject_P], PyObject_P))
 binaryfunc = lltype.Ptr(lltype.FuncType([PyObject_P, PyObject_P], PyObject_P))
@@ -487,6 +505,15 @@ config = rffi_platform.configure(_CPyModuleObjectConfig)
 PyModuleDef = config["PyModuleDef"]
 PyModuleDef_P = lltype.Ptr(PyModuleDef)
 
+# objimpl.h
+PyObject_Malloc = rffi.llexternal("PyObject_Malloc", [rffi.SIZE_T], rffi.VOIDP, **_llextkws)
+PyObject_Realloc = rffi.llexternal("PyObject_Realloc", [rffi.VOIDP, rffi.SIZE_T], rffi.VOIDP, **_llextkws)
+PyObject_Free = rffi.llexternal("PyObject_Free", [rffi.VOIDP], lltype.Void, **_llextkws)
+PyObject_MALLOC = rffi.llexternal("PyObject_MALLOC", [rffi.SIZE_T], rffi.VOIDP, **_llextkws)
+PyObject_REALLOC = rffi.llexternal("PyObject_REALLOC", [rffi.VOIDP, rffi.SIZE_T], rffi.VOIDP, **_llextkws)
+PyObject_FREE = rffi.llexternal("PyObject_FREE", [rffi.VOIDP], lltype.Void, **_llextkws)
+PyObject_Del = rffi.llexternal("PyObject_Del", [rffi.VOIDP], lltype.Void, **_llextkws)
+PyObject_DEL = rffi.llexternal("PyObject_DEL", [rffi.VOIDP], lltype.Void, **_llextkws)
 
 _Py_CODEUNIT__InnerStruct = rffi.CStruct("", ("code", rffi.UCHAR), ("arg", rffi.UCHAR), hints={"typedef": False, "external": "C", "c_name": "", "eci": _ECI, "size": 2})
 if PY_MAJOR_VERSION == 3 and PY_MINOR_VERSION == 12:
