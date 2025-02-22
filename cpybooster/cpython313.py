@@ -2902,6 +2902,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_op_multiply_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_MULTIPLY_INT):
         return _target_binary_op_multiply_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_OP_SUBTRACT_FLOAT):
+        return _target_binary_op_subtract_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INSTRUMENTED_LINE):
@@ -3359,6 +3361,43 @@ def _target_binary_op_multiply_int(tstate, frame, entry_frame, opcode, oparg, ne
     _Py_DECREF_SPECIALIZED(left, rffi.cast(cpython.destructor, cpython.PyObject_Free))
     if llop.ptr_iszero(lltype.Bool, res):
         return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_op_subtract_float(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    right = lltype.nullptr(cpython.PyObject)
+    left = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # _GUARD_BOTH_FLOAT
+    right = TOP(stack_pointer)
+    left = SECOND(stack_pointer)
+    if not cpython.PyFloat_CheckExact(left):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyFloat_CheckExact(right):
+        return _predicted_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Skip 1 cache entry
+    # _BINARY_OP_SUBTRACT_FLOAT
+    dres = _GET_FLOAT_OBJECT_VALUE(left) - _GET_FLOAT_OBJECT_VALUE(right)
+    if llop.int_eq(lltype.Bool, cpython.Py_REFCNT(left), 1):
+        _SET_FLOAT_OBJECT_VALUE(left, dres)
+        _Py_DECREF_SPECIALIZED(right, _PyFloat_ExactDealloc)
+        res = left
+    elif llop.int_eq(lltype.Bool, cpython.Py_REFCNT(right), 1):
+        _SET_FLOAT_OBJECT_VALUE(right, dres)
+        _Py_DECREF_NO_DEALLOC(left)
+        res = right
+    else:
+        res = cpython.PyFloat_FromDouble(dres)
+        if llop.ptr_iszero(lltype.Bool, res):
+            return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+        _Py_DECREF_NO_DEALLOC(left)
+        _Py_DECREF_NO_DEALLOC(right)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
