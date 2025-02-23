@@ -972,6 +972,24 @@ PyTuple_GET_SIZE = rffi.llexternal("PyTuple_GET_SIZE", [PyObject_P], Py_ssize_t,
 PyTuple_GET_ITEM = rffi.llexternal("PyTuple_GET_ITEM", [PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
 PyTuple_SET_ITEM = rffi.llexternal("PyTuple_SET_ITEM", [PyObject_P, Py_ssize_t, PyObject_P], lltype.Void, **_llextkws)
 
+# Functions in setobject.h
+PySet_Check = rffi.llexternal("PySet_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PySet_CheckExact = rffi.llexternal("PySet_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyAnySet_Check = rffi.llexternal("PyAnySet_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyAnySet_CheckExact = rffi.llexternal("PyAnySet_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyFrozenSet_Check = rffi.llexternal("PyFrozenSet_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyFrozenSet_CheckExact = rffi.llexternal("PyFrozenSet_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PySet_New = rffi.llexternal("PySet_New", [PyObject_P], PyObject_P, **_llextkws)
+PyFrozenSet_New = rffi.llexternal("PyFrozenSet_New", [PyObject_P], PyObject_P, **_llextkws)
+PySet_Add = rffi.llexternal("PySet_Add", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PySet_Clear = rffi.llexternal("PySet_Clear", [PyObject_P], rffi.INT, **_llextkws)
+PySet_Contains = rffi.llexternal("PySet_Contains", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PySet_Discard = rffi.llexternal("PySet_Discard", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PySet_Pop = rffi.llexternal("PySet_Pop", [PyObject_P], PyObject_P, **_llextkws)
+PySet_Size = rffi.llexternal("PySet_Size", [PyObject_P], Py_ssize_t, **_llextkws)
+# Functions in cpython/setobject.h
+PySet_GET_SIZE = rffi.llexternal("PySet_GET_SIZE", [PyObject_P], Py_ssize_t, **_llextkws)
+
 # Functions in sliceobject.h
 PySlice_New = rffi.llexternal("PySlice_New", [PyObject_P, PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 

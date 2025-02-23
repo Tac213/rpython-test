@@ -3245,6 +3245,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_list(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_MAP):
         return _target_build_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_SET):
+        return _target_build_set(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4069,6 +4071,31 @@ def _target_build_map(tstate, frame, entry_frame, opcode, oparg, next_instr, sta
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, llop.int_mul(rffi.INT, r_int32(2), oparg), map)
     STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, llop.int_mul(rffi.INT, r_int32(2), oparg), r_int32(1)))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_set(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    set = lltype.nullptr(cpython.PyObject)
+    values = _PYOBJECT_ADDRESS(PEEK(stack_pointer, oparg))
+    set = cpython.PySet_New(lltype.nullptr(cpython.PyObject))
+    if llop.ptr_iszero(lltype.Bool, set):
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    err = r_int32(0)
+    for i in range(oparg):
+        item = values[i]
+        if llop.int_eq(lltype.Bool, err, r_int32(0)):
+            err = cpython.PySet_Add(set, item)
+        cpython.Py_DECREF(item)
+    if llop.int_is_true(lltype.Bool, err):
+        cpython.Py_DECREF(set)
+        STACK_SHRINK(stack_pointer, oparg)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, oparg, set)
+    STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
