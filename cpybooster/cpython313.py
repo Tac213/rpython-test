@@ -2875,6 +2875,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define _STR_NO_AEXIT \"'%.200s' object does not support the asynchronous context manager protocol (missed __aexit__ method)\""),
         _unique_str("#define _STR_NO_ENTER \"'%.200s' object does not support the context manager protocol\""),
         _unique_str("#define _STR_NO_EXIT \"'%.200s' object does not support the context manager protocol (missed __exit__ method)\""),
+        _unique_str("#define _STR_EXECUTING_CACHE \"Executing a cache.\""),
         _unique_str("#define _INT_DECLARE() 0"),
         _unique_str("#define _INT_ADDRESS(var) &(var)"),
         _unique_str("#define _DEREFERENCE(var) *(var)"),
@@ -3093,6 +3094,7 @@ _STR_NO_AENTER = rffi.CConstant("_STR_NO_AENTER", rffi.CONST_CCHARP)
 _STR_NO_AEXIT = rffi.CConstant("_STR_NO_AEXIT", rffi.CONST_CCHARP)
 _STR_NO_ENTER = rffi.CConstant("_STR_NO_ENTER", rffi.CONST_CCHARP)
 _STR_NO_EXIT = rffi.CConstant("_STR_NO_EXIT", rffi.CONST_CCHARP)
+_STR_EXECUTING_CACHE = rffi.CConstant("_STR_EXECUTING_CACHE", rffi.CONST_CCHARP)
 _INT_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.INT, **cpython._llextkws)
 _UINT8_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.UCHAR, **cpython._llextkws)
 _INT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [rffi.INT], rffi.INT_realP, **cpython._llextkws)
@@ -3260,6 +3262,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_string(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_TUPLE):
         return _target_build_tuple(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.CACHE):
+        return _target_cache(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4172,6 +4176,15 @@ def _target_build_tuple(tstate, frame, entry_frame, opcode, oparg, next_instr, s
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, oparg, tup)
     STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_cache(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    cpython.Py_FatalError(_STR_EXECUTING_CACHE)
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 

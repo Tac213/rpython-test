@@ -1764,6 +1764,8 @@ class opcode_ids:
 # pyerrors.h
 PyExc_SystemError = rffi.CConstant("PyExc_SystemError", PyObject_P)
 PyExc_TypeError = rffi.CConstant("PyExc_TypeError", PyObject_P)
+# cpython/pyerrors.h
+Py_FatalError = rffi.llexternal("Py_FatalError", [rffi.CONST_CCHARP], lltype.Void, **_llextkws)
 
 # traceback.h
 PyTraceBack_Here = rffi.llexternal("PyTraceBack_Here", [PyFrameObject_P], rffi.INT, **_llextkws)
