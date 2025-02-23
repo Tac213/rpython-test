@@ -2471,6 +2471,295 @@ _SPECIALIZE_SOURCE = r"""
 #  define SPECIALIZATION_FAIL(opcode, kind) ((void)0)
 #endif
 
+#define SIMPLE_FUNCTION 0
+
+/* Common */
+
+#define SPEC_FAIL_OTHER 0
+#define SPEC_FAIL_NO_DICT 1
+#define SPEC_FAIL_OVERRIDDEN 2
+#define SPEC_FAIL_OUT_OF_VERSIONS 3
+#define SPEC_FAIL_OUT_OF_RANGE 4
+#define SPEC_FAIL_EXPECTED_ERROR 5
+#define SPEC_FAIL_WRONG_NUMBER_ARGUMENTS 6
+#define SPEC_FAIL_CODE_COMPLEX_PARAMETERS 7
+#define SPEC_FAIL_CODE_NOT_OPTIMIZED 8
+
+
+#define SPEC_FAIL_LOAD_GLOBAL_NON_DICT 17
+#define SPEC_FAIL_LOAD_GLOBAL_NON_STRING_OR_SPLIT 18
+
+/* Super */
+
+#define SPEC_FAIL_SUPER_BAD_CLASS 9
+#define SPEC_FAIL_SUPER_SHADOWED 10
+
+/* Attributes */
+
+#define SPEC_FAIL_ATTR_OVERRIDING_DESCRIPTOR 9
+#define SPEC_FAIL_ATTR_NON_OVERRIDING_DESCRIPTOR 10
+#define SPEC_FAIL_ATTR_NOT_DESCRIPTOR 11
+#define SPEC_FAIL_ATTR_METHOD 12
+#define SPEC_FAIL_ATTR_MUTABLE_CLASS 13
+#define SPEC_FAIL_ATTR_PROPERTY 14
+#define SPEC_FAIL_ATTR_NON_OBJECT_SLOT 15
+#define SPEC_FAIL_ATTR_READ_ONLY 16
+#define SPEC_FAIL_ATTR_AUDITED_SLOT 17
+#define SPEC_FAIL_ATTR_NOT_MANAGED_DICT 18
+#define SPEC_FAIL_ATTR_NON_STRING_OR_SPLIT 19
+#define SPEC_FAIL_ATTR_MODULE_ATTR_NOT_FOUND 20
+#define SPEC_FAIL_ATTR_SHADOWED 21
+#define SPEC_FAIL_ATTR_BUILTIN_CLASS_METHOD 22
+#define SPEC_FAIL_ATTR_CLASS_METHOD_OBJ 23
+#define SPEC_FAIL_ATTR_OBJECT_SLOT 24
+
+#define SPEC_FAIL_ATTR_INSTANCE_ATTRIBUTE 26
+#define SPEC_FAIL_ATTR_METACLASS_ATTRIBUTE 27
+#define SPEC_FAIL_ATTR_PROPERTY_NOT_PY_FUNCTION 28
+#define SPEC_FAIL_ATTR_NOT_IN_KEYS 29
+#define SPEC_FAIL_ATTR_NOT_IN_DICT 30
+#define SPEC_FAIL_ATTR_CLASS_ATTR_SIMPLE 31
+#define SPEC_FAIL_ATTR_CLASS_ATTR_DESCRIPTOR 32
+#define SPEC_FAIL_ATTR_BUILTIN_CLASS_METHOD_OBJ 33
+
+/* Binary subscr and store subscr */
+
+#define SPEC_FAIL_SUBSCR_ARRAY_INT 9
+#define SPEC_FAIL_SUBSCR_ARRAY_SLICE 10
+#define SPEC_FAIL_SUBSCR_LIST_SLICE 11
+#define SPEC_FAIL_SUBSCR_TUPLE_SLICE 12
+#define SPEC_FAIL_SUBSCR_STRING_SLICE 14
+#define SPEC_FAIL_SUBSCR_BUFFER_INT 15
+#define SPEC_FAIL_SUBSCR_BUFFER_SLICE 16
+#define SPEC_FAIL_SUBSCR_SEQUENCE_INT 17
+
+/* Store subscr */
+#define SPEC_FAIL_SUBSCR_BYTEARRAY_INT 18
+#define SPEC_FAIL_SUBSCR_BYTEARRAY_SLICE 19
+#define SPEC_FAIL_SUBSCR_PY_SIMPLE 20
+#define SPEC_FAIL_SUBSCR_PY_OTHER 21
+#define SPEC_FAIL_SUBSCR_DICT_SUBCLASS_NO_OVERRIDE 22
+#define SPEC_FAIL_SUBSCR_NOT_HEAP_TYPE 23
+
+/* Binary op */
+
+#define SPEC_FAIL_BINARY_OP_ADD_DIFFERENT_TYPES          9
+#define SPEC_FAIL_BINARY_OP_ADD_OTHER                   10
+#define SPEC_FAIL_BINARY_OP_AND_DIFFERENT_TYPES         11
+#define SPEC_FAIL_BINARY_OP_AND_INT                     12
+#define SPEC_FAIL_BINARY_OP_AND_OTHER                   13
+#define SPEC_FAIL_BINARY_OP_FLOOR_DIVIDE                14
+#define SPEC_FAIL_BINARY_OP_LSHIFT                      15
+#define SPEC_FAIL_BINARY_OP_MATRIX_MULTIPLY             16
+#define SPEC_FAIL_BINARY_OP_MULTIPLY_DIFFERENT_TYPES    17
+#define SPEC_FAIL_BINARY_OP_MULTIPLY_OTHER              18
+#define SPEC_FAIL_BINARY_OP_OR                          19
+#define SPEC_FAIL_BINARY_OP_POWER                       20
+#define SPEC_FAIL_BINARY_OP_REMAINDER                   21
+#define SPEC_FAIL_BINARY_OP_RSHIFT                      22
+#define SPEC_FAIL_BINARY_OP_SUBTRACT_DIFFERENT_TYPES    23
+#define SPEC_FAIL_BINARY_OP_SUBTRACT_OTHER              24
+#define SPEC_FAIL_BINARY_OP_TRUE_DIVIDE_DIFFERENT_TYPES 25
+#define SPEC_FAIL_BINARY_OP_TRUE_DIVIDE_FLOAT           26
+#define SPEC_FAIL_BINARY_OP_TRUE_DIVIDE_OTHER           27
+#define SPEC_FAIL_BINARY_OP_XOR                         28
+
+/* Calls */
+
+#define SPEC_FAIL_CALL_INSTANCE_METHOD 11
+#define SPEC_FAIL_CALL_CMETHOD 12
+#define SPEC_FAIL_CALL_CFUNC_VARARGS 13
+#define SPEC_FAIL_CALL_CFUNC_VARARGS_KEYWORDS 14
+#define SPEC_FAIL_CALL_CFUNC_NOARGS 15
+#define SPEC_FAIL_CALL_CFUNC_METHOD_FASTCALL_KEYWORDS 16
+#define SPEC_FAIL_CALL_METH_DESCR_VARARGS 17
+#define SPEC_FAIL_CALL_METH_DESCR_VARARGS_KEYWORDS 18
+#define SPEC_FAIL_CALL_METH_DESCR_METHOD_FASTCALL_KEYWORDS 19
+#define SPEC_FAIL_CALL_BAD_CALL_FLAGS 20
+#define SPEC_FAIL_CALL_INIT_NOT_PYTHON 21
+#define SPEC_FAIL_CALL_PEP_523 22
+#define SPEC_FAIL_CALL_BOUND_METHOD 23
+#define SPEC_FAIL_CALL_STR 24
+#define SPEC_FAIL_CALL_CLASS_NO_VECTORCALL 25
+#define SPEC_FAIL_CALL_CLASS_MUTABLE 26
+#define SPEC_FAIL_CALL_METHOD_WRAPPER 28
+#define SPEC_FAIL_CALL_OPERATOR_WRAPPER 29
+#define SPEC_FAIL_CALL_INIT_NOT_SIMPLE 30
+#define SPEC_FAIL_CALL_METACLASS 31
+#define SPEC_FAIL_CALL_INIT_NOT_INLINE_VALUES 32
+
+/* COMPARE_OP */
+#define SPEC_FAIL_COMPARE_OP_DIFFERENT_TYPES 12
+#define SPEC_FAIL_COMPARE_OP_STRING 13
+#define SPEC_FAIL_COMPARE_OP_BIG_INT 14
+#define SPEC_FAIL_COMPARE_OP_BYTES 15
+#define SPEC_FAIL_COMPARE_OP_TUPLE 16
+#define SPEC_FAIL_COMPARE_OP_LIST 17
+#define SPEC_FAIL_COMPARE_OP_SET 18
+#define SPEC_FAIL_COMPARE_OP_BOOL 19
+#define SPEC_FAIL_COMPARE_OP_BASEOBJECT 20
+#define SPEC_FAIL_COMPARE_OP_FLOAT_LONG 21
+#define SPEC_FAIL_COMPARE_OP_LONG_FLOAT 22
+
+/* FOR_ITER and SEND */
+#define SPEC_FAIL_ITER_GENERATOR 10
+#define SPEC_FAIL_ITER_COROUTINE 11
+#define SPEC_FAIL_ITER_ASYNC_GENERATOR 12
+#define SPEC_FAIL_ITER_LIST 13
+#define SPEC_FAIL_ITER_TUPLE 14
+#define SPEC_FAIL_ITER_SET 15
+#define SPEC_FAIL_ITER_STRING 16
+#define SPEC_FAIL_ITER_BYTES 17
+#define SPEC_FAIL_ITER_RANGE 18
+#define SPEC_FAIL_ITER_ITERTOOLS 19
+#define SPEC_FAIL_ITER_DICT_KEYS 20
+#define SPEC_FAIL_ITER_DICT_ITEMS 21
+#define SPEC_FAIL_ITER_DICT_VALUES 22
+#define SPEC_FAIL_ITER_ENUMERATE 23
+#define SPEC_FAIL_ITER_MAP 24
+#define SPEC_FAIL_ITER_ZIP 25
+#define SPEC_FAIL_ITER_SEQ_ITER 26
+#define SPEC_FAIL_ITER_REVERSED_LIST 27
+#define SPEC_FAIL_ITER_CALLABLE 28
+#define SPEC_FAIL_ITER_ASCII_STRING 29
+#define SPEC_FAIL_ITER_ASYNC_GENERATOR_SEND 30
+
+// UNPACK_SEQUENCE
+
+#define SPEC_FAIL_UNPACK_SEQUENCE_ITERATOR 9
+#define SPEC_FAIL_UNPACK_SEQUENCE_SEQUENCE 10
+
+// TO_BOOL
+#define SPEC_FAIL_TO_BOOL_BYTEARRAY    9
+#define SPEC_FAIL_TO_BOOL_BYTES       10
+#define SPEC_FAIL_TO_BOOL_DICT        11
+#define SPEC_FAIL_TO_BOOL_FLOAT       12
+#define SPEC_FAIL_TO_BOOL_MAPPING     13
+#define SPEC_FAIL_TO_BOOL_MEMORY_VIEW 14
+#define SPEC_FAIL_TO_BOOL_NUMBER      15
+#define SPEC_FAIL_TO_BOOL_SEQUENCE    16
+#define SPEC_FAIL_TO_BOOL_SET         17
+#define SPEC_FAIL_TO_BOOL_TUPLE       18
+
+// CONTAINS_OP
+#define SPEC_FAIL_CONTAINS_OP_STR        9
+#define SPEC_FAIL_CONTAINS_OP_TUPLE      10
+#define SPEC_FAIL_CONTAINS_OP_LIST       11
+#define SPEC_FAIL_CONTAINS_OP_USER_CLASS 12
+
+static int
+function_kind(PyCodeObject *code) {
+    int flags = code->co_flags;
+    if ((flags & (CO_VARKEYWORDS | CO_VARARGS)) || code->co_kwonlyargcount) {
+        return SPEC_FAIL_CODE_COMPLEX_PARAMETERS;
+    }
+    if ((flags & CO_OPTIMIZED) == 0) {
+        return SPEC_FAIL_CODE_NOT_OPTIMIZED;
+    }
+    return SIMPLE_FUNCTION;
+}
+
+void
+_Py_Specialize_BinarySubscr(
+     PyObject *container, PyObject *sub, _Py_CODEUNIT *instr)
+{
+    assert(ENABLE_SPECIALIZATION);
+    assert(_PyOpcode_Caches[BINARY_SUBSCR] ==
+           INLINE_CACHE_ENTRIES_BINARY_SUBSCR);
+    _PyBinarySubscrCache *cache = (_PyBinarySubscrCache *)(instr + 1);
+    PyTypeObject *container_type = Py_TYPE(container);
+    if (container_type == &PyList_Type) {
+        if (PyLong_CheckExact(sub)) {
+            if (_PyLong_IsNonNegativeCompact((PyLongObject *)sub)) {
+                instr->op.code = BINARY_SUBSCR_LIST_INT;
+                goto success;
+            }
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_OUT_OF_RANGE);
+            goto fail;
+        }
+        SPECIALIZATION_FAIL(BINARY_SUBSCR,
+            PySlice_Check(sub) ? SPEC_FAIL_SUBSCR_LIST_SLICE : SPEC_FAIL_OTHER);
+        goto fail;
+    }
+    if (container_type == &PyTuple_Type) {
+        if (PyLong_CheckExact(sub)) {
+            if (_PyLong_IsNonNegativeCompact((PyLongObject *)sub)) {
+                instr->op.code = BINARY_SUBSCR_TUPLE_INT;
+                goto success;
+            }
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_OUT_OF_RANGE);
+            goto fail;
+        }
+        SPECIALIZATION_FAIL(BINARY_SUBSCR,
+            PySlice_Check(sub) ? SPEC_FAIL_SUBSCR_TUPLE_SLICE : SPEC_FAIL_OTHER);
+        goto fail;
+    }
+    if (container_type == &PyUnicode_Type) {
+        if (PyLong_CheckExact(sub)) {
+            if (_PyLong_IsNonNegativeCompact((PyLongObject *)sub)) {
+                instr->op.code = BINARY_SUBSCR_STR_INT;
+                goto success;
+            }
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_OUT_OF_RANGE);
+            goto fail;
+        }
+        SPECIALIZATION_FAIL(BINARY_SUBSCR,
+            PySlice_Check(sub) ? SPEC_FAIL_SUBSCR_STRING_SLICE : SPEC_FAIL_OTHER);
+        goto fail;
+    }
+    if (container_type == &PyDict_Type) {
+        instr->op.code = BINARY_SUBSCR_DICT;
+        goto success;
+    }
+    PyTypeObject *cls = Py_TYPE(container);
+    PyObject *descriptor = _PyType_Lookup(cls, &_Py_ID(__getitem__));
+    if (descriptor && Py_TYPE(descriptor) == &PyFunction_Type) {
+        if (!(container_type->tp_flags & Py_TPFLAGS_HEAPTYPE)) {
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_SUBSCR_NOT_HEAP_TYPE);
+            goto fail;
+        }
+        PyFunctionObject *func = (PyFunctionObject *)descriptor;
+        PyCodeObject *fcode = (PyCodeObject *)func->func_code;
+        int kind = function_kind(fcode);
+        if (kind != SIMPLE_FUNCTION) {
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, kind);
+            goto fail;
+        }
+        if (fcode->co_argcount != 2) {
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_WRONG_NUMBER_ARGUMENTS);
+            goto fail;
+        }
+        uint32_t version = func->func_version;
+        if (version == 0) {
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_OUT_OF_VERSIONS);
+            goto fail;
+        }
+        if (_PyInterpreterState_GET()->eval_frame) {
+            SPECIALIZATION_FAIL(BINARY_SUBSCR, SPEC_FAIL_OTHER);
+            goto fail;
+        }
+        PyHeapTypeObject *ht = (PyHeapTypeObject *)container_type;
+        // This pointer is invalidated by PyType_Modified (see the comment on
+        // struct _specialization_cache):
+        ht->_spec_cache.getitem = descriptor;
+        ht->_spec_cache.getitem_version = version;
+        instr->op.code = BINARY_SUBSCR_GETITEM;
+        goto success;
+    }
+    SPECIALIZATION_FAIL(BINARY_SUBSCR,
+                        binary_subscr_fail_kind(container_type, sub));
+fail:
+    STAT_INC(BINARY_SUBSCR, failure);
+    assert(!PyErr_Occurred());
+    instr->op.code = BINARY_SUBSCR;
+    cache->counter = adaptive_counter_backoff(cache->counter);
+    return;
+success:
+    STAT_INC(BINARY_SUBSCR, success);
+    assert(!PyErr_Occurred());
+    cache->counter = adaptive_counter_cooldown();
+}
+
 void
 _Py_Specialize_BinaryOp(PyObject *lhs, PyObject *rhs, _Py_CODEUNIT *instr,
                         int oparg, PyObject **locals)
@@ -2741,7 +3030,9 @@ _PyErr_Format_Constccharp = rffi.llexternal("_PyErr_Format", [cpython.PyThreadSt
 _PyObject_CallNoArgs = rffi.llexternal("_PyObject_CallNoArgs", [cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _PyObject_LookupSpecial = rffi.llexternal("_PyObject_LookupSpecial", [cpython.PyObject_P, cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _Py_ID = rffi.llexternal("_CPYBOOSTER_Py_ID", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
+
 _Py_Specialize_BinaryOp = rffi.llexternal("_Py_Specialize_BinaryOp", [cpython.PyObject_P, cpython.PyObject_P, cpython._Py_CODEUNIT_P, rffi.INT, rffi.CArrayPtr(cpython.PyObject_P)], lltype.Void, **cpython._llextkws)
+_Py_Specialize_BinarySubscr = rffi.llexternal("_Py_Specialize_BinarySubscr", [cpython.PyObject_P, cpython.PyObject_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
 _Py_DECREF_SPECIALIZED = rffi.llexternal("_Py_DECREF_SPECIALIZED", [cpython.PyObject_P, cpython.destructor], lltype.Void, **cpython._llextkws)
 _Py_DECREF_NO_DEALLOC = rffi.llexternal("_Py_DECREF_NO_DEALLOC", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
@@ -2909,6 +3200,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_op_subtract_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SLICE):
         return _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR):
+        return _target_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3140,6 +3433,19 @@ def _binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_poin
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
+@always_inline
+def _binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, container, sub):
+    res = cpython.PyObject_GetItem(container, sub)
+    cpython.Py_DECREF(container)
+    cpython.Py_DECREF(sub)
+    if llop.ptr_iszero(lltype.Bool, res):
+        return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
 if cpython.ENABLE_SPECIALIZATION:
     @always_inline
     def _specialized_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, lhs, rhs):
@@ -3152,10 +3458,27 @@ if cpython.ENABLE_SPECIALIZATION:
         _ADVANCE_ADAPTIVE_COUNTER(this_instr)
         return _binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, lhs, rhs)
 
+
+    @always_inline
+    def _specialized_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, container, sub):
+        counter = read_u16_1(this_instr)
+        if ADAPTIVE_COUNTER_TRIGGERS(counter):
+            next_instr = this_instr
+            _Py_Specialize_BinarySubscr(container, sub, next_instr)
+            DISPATCH_SAME_OPARG(next_instr, opcode)
+            return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+        _ADVANCE_ADAPTIVE_COUNTER(this_instr)
+        return _binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, container, sub)
+
 else:
     @always_inline
     def _specialized_binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, lhs, rhs):
         return _binary_op(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, lhs, rhs)
+
+
+    @always_inline
+    def _specialized_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, container, sub):
+        return _binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, container, sub)
 
 
 @always_inline
@@ -3471,6 +3794,26 @@ def _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, 
     STACK_SHRINK(stack_pointer, r_int32(2))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    this_instr = _INSTR_PTR_SUB(next_instr, r_int32(2))
+    sub = lltype.nullptr(cpython.PyObject)
+    container = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # _SPECIALIZE_BINARY_SUBSCR
+    sub = TOP(stack_pointer)
+    container = SECOND(stack_pointer)
+    # _BIANRY_SUBSCR
+    return _specialized_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, container, sub)
 
 
 @always_inline
