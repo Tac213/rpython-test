@@ -2897,6 +2897,8 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define _GET_HEAP_GET_ITEM(ht) (ht)->_spec_cache.getitem"),
         _unique_str("#define _GET_HEAP_GET_ITEM_VERSION(ht) (ht)->_spec_cache.getitem_version"),
         _unique_str("#define _SET_FRAME_LOCALSPLUS(frame, i, v) (frame)->localsplus[(i)] = (v)"),
+        _unique_str("#define _GET_PY_SINGLETON_STRINGS_ASCII_LENGTH() Py_ARRAY_LENGTH(_Py_SINGLETON(strings).ascii)"),
+        _unique_str("#define _GET_PY_SINGLETON_STRINGS_ASCII_CHAR(c) (PyObject*)&_Py_SINGLETON(strings).ascii[(c)]"),
         _unique_str("#define _CPYBOOSTER_Py_ID(NAME) &_Py_ID(NAME)"),
         _unique_str("#define _CPYBOOSTER_PyEval_BinaryOps(oparg, lhs, rhs) _PyEval_BinaryOps[(oparg)]((lhs), (rhs))"),
         _unique_str("#define _CPYBOOSTER_PyEval_ConversionFuncs(oparg, value) _PyEval_ConversionFuncs[(oparg)]((value))"),
@@ -3099,6 +3101,8 @@ _GET_EVAL_FRAME_FUNC = rffi.llexternal("_GET_EVAL_FRAME_FUNC", [cpython.PyThread
 _GET_HEAP_GET_ITEM = rffi.llexternal("_GET_HEAP_GET_ITEM", [cpython.PyHeapTypeObject_P], cpython.PyObject_P, **cpython._llextkws)
 _GET_HEAP_GET_ITEM_VERSION = rffi.llexternal("_GET_HEAP_GET_ITEM_VERSION", [cpython.PyHeapTypeObject_P], rffi.UINT, **cpython._llextkws)
 _SET_FRAME_LOCALSPLUS = rffi.llexternal("_SET_FRAME_LOCALSPLUS", [cpython._PyInterpreterFrame_P, rffi.INT, cpython.PyObject_P], lltype.Void, **cpython._llextkws)
+_GET_PY_SINGLETON_STRINGS_ASCII_LENGTH = rffi.llexternal("_GET_PY_SINGLETON_STRINGS_ASCII_LENGTH", [], cpython.Py_ssize_t, **cpython._llextkws)
+_GET_PY_SINGLETON_STRINGS_ASCII_CHAR = rffi.llexternal("_GET_PY_SINGLETON_STRINGS_ASCII_CHAR", [cpython.Py_UCS4], cpython.PyObject_P, **cpython._llextkws)
 _ADVANCE_ADAPTIVE_COUNTER = rffi.llexternal("_ADVANCE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _GET_LOCAL_AS_ARRAY = rffi.llexternal("_GET_LOCAL_AS_ARRAY", [cpython._PyInterpreterFrame_P, rffi.INT], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
@@ -3225,6 +3229,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_subscr_getitem(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_LIST_INT):
         return _target_binary_subscr_list_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_STR_INT):
+        return _target_binary_subscr_str_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3927,6 +3933,37 @@ def _target_binary_subscr_list_int(tstate, frame, entry_frame, opcode, oparg, ne
     cpython.Py_INCREF(res)
     _Py_DECREF_SPECIALIZED(sub, rffi.cast(cpython.destructor, cpython.PyObject_Free))
     cpython.Py_DECREF(list)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_subscr_str_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    sub = lltype.nullptr(cpython.PyObject)
+    str = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # Skip 1 cache entry
+    sub = TOP(stack_pointer)
+    str = SECOND(stack_pointer)
+    if not cpython.PyLong_CheckExact(sub):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyUnicode_CheckExact(str):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not _PyLong_IsNonNegativeCompact(rffi.cast(cpython.PyLongObject_P, sub)):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    index = _GET_LONG_OBJECT_VALUE(sub)
+    if llop.int_le(lltype.Bool, cpython.PyUnicode_GET_LENGTH(str), index):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    c = cpython.PyUnicode_READ_CHAR(str, index)
+    if llop.int_le(lltype.Bool, _GET_PY_SINGLETON_STRINGS_ASCII_LENGTH(), c):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    res = _GET_PY_SINGLETON_STRINGS_ASCII_CHAR(c)
+    _Py_DECREF_SPECIALIZED(sub, rffi.cast(cpython.destructor, cpython.PyObject_Free))
+    cpython.Py_DECREF(str)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)

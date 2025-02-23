@@ -41,6 +41,11 @@ class _CPyBasicConfig:
     Py_hash_t = rffi_platform.SimpleType("Py_hash_t", rffi.LONGLONG)
     Py_uhash_t = rffi_platform.SimpleType("Py_uhash_t", rffi.SIZE_T)
 
+    # unicodeobject.h
+    Py_UCS4 = rffi_platform.SimpleType("Py_UCS4", rffi.UINT)
+    Py_UCS2 = rffi_platform.SimpleType("Py_UCS4", rffi.USHORT)
+    Py_UCS1 = rffi_platform.SimpleType("Py_UCS4", rffi.UCHAR)
+
 
 config = rffi_platform.configure(_CPyBasicConfig)
 
@@ -57,6 +62,10 @@ Py_uintptr_t = config["Py_uintptr_t"]
 Py_intptr_t = config["Py_intptr_t"]
 Py_hash_t = config["Py_hash_t"]
 Py_uhash_t = config["Py_uhash_t"]
+
+Py_UCS4 = config["Py_UCS4"]
+Py_UCS2 = config["Py_UCS2"]
+Py_UCS1 = config["Py_UCS1"]
 
 # pymacro.h
 Py_UNREACHABLE = rffi.llexternal("Py_UNREACHABLE", [], lltype.Void, **_llextkws)
@@ -889,8 +898,34 @@ PyFloat_FromDouble = rffi.llexternal("PyFloat_FromDouble", [lltype.Float], PyObj
 # Functions in unicodeobject.h
 PyUnicode_Check = rffi.llexternal("PyUnicode_Check", [PyObject_P], lltype.Bool, **_llextkws)
 PyUnicode_CheckExact = rffi.llexternal("PyUnicode_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyUnicode_FromStringAndSize = rffi.llexternal("PyUnicode_FromStringAndSize", [rffi.CONST_CCHARP, Py_ssize_t], PyObject_P, **_llextkws)
+PyUnicode_FromString = rffi.llexternal("PyUnicode_FromString", [rffi.CONST_CCHARP], PyObject_P, **_llextkws)
+PyUnicode_Resize = rffi.llexternal("PyUnicode_Resize", [PyObject_P, Py_ssize_t], rffi.INT, **_llextkws)
+PyUnicode_FromEncodedObject = rffi.llexternal("PyUnicode_FromEncodedObject", [PyObject_P, rffi.CONST_CCHARP, rffi.CONST_CCHARP], PyObject_P, **_llextkws)
+PyUnicode_FromObject = rffi.llexternal("PyUnicode_FromObject", [PyObject_P], PyObject_P, **_llextkws)
 PyUnicode_Concat = rffi.llexternal("PyUnicode_Concat", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 PyUnicode_Append = rffi.llexternal("PyUnicode_Append", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
+PyUnicode_AppendAndDel = rffi.llexternal("PyUnicode_AppendAndDel", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
+PyUnicode_Split = rffi.llexternal("PyUnicode_Split", [PyObject_P, PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyUnicode_Splitlines = rffi.llexternal("PyUnicode_Splitlines", [PyObject_P, rffi.INT], PyObject_P, **_llextkws)
+PyUnicode_Partition = rffi.llexternal("PyUnicode_Partition", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyUnicode_RPartition = rffi.llexternal("PyUnicode_RPartition", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyUnicode_RSplit = rffi.llexternal("PyUnicode_RSplit", [PyObject_P, PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyUnicode_Translate = rffi.llexternal("PyUnicode_Translate", [PyObject_P, PyObject_P, rffi.CONST_CCHARP], PyObject_P, **_llextkws)
+PyUnicode_Join = rffi.llexternal("PyUnicode_Join", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyUnicode_Tailmatch = rffi.llexternal("PyUnicode_Tailmatch", [PyObject_P, PyObject_P, Py_ssize_t, Py_ssize_t, rffi.INT], Py_ssize_t, **_llextkws)
+PyUnicode_Find = rffi.llexternal("PyUnicode_Find", [PyObject_P, PyObject_P, Py_ssize_t, Py_ssize_t, rffi.INT], Py_ssize_t, **_llextkws)
+PyUnicode_Count = rffi.llexternal("PyUnicode_Count", [PyObject_P, PyObject_P, Py_ssize_t, Py_ssize_t], Py_ssize_t, **_llextkws)
+PyUnicode_Replace = rffi.llexternal("PyUnicode_Replace", [PyObject_P, PyObject_P, PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyUnicode_Compare = rffi.llexternal("PyUnicode_Compare", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyUnicode_CompareWithASCIIString = rffi.llexternal("PyUnicode_CompareWithASCIIString", [PyObject_P, rffi.CONST_CCHARP], rffi.INT, **_llextkws)
+PyUnicode_RichCompare = rffi.llexternal("PyUnicode_RichCompare", [PyObject_P, PyObject_P, rffi.INT], PyObject_P, **_llextkws)
+PyUnicode_Format = rffi.llexternal("PyUnicode_Format", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyUnicode_Contains = rffi.llexternal("PyUnicode_Contains", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyUnicode_IsIdentifier = rffi.llexternal("PyUnicode_IsIdentifier", [PyObject_P], rffi.INT, **_llextkws)
+# Functions in cpython/unicodeobject.h
+PyUnicode_GET_LENGTH = rffi.llexternal("PyUnicode_GET_LENGTH", [PyObject_P], Py_ssize_t, **_llextkws)
+PyUnicode_READ_CHAR = rffi.llexternal("PyUnicode_READ_CHAR", [PyObject_P, Py_ssize_t], Py_UCS4, **_llextkws)
 
 # Functions in listobject.h
 PyList_Check = rffi.llexternal("PyList_Check", [PyObject_P], lltype.Bool, **_llextkws)
