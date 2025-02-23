@@ -2892,6 +2892,10 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define _GET_CODE_OBJECT_ORIGINAL_OPCODE(code, here) (code)->_co_monitoring->lines[(int)((here) - _PyCode_CODE((code)))].original_opcode"),
         _unique_str("#define _GET_FLOAT_OBJECT_VALUE(obj) ((PyFloatObject *)obj)->ob_fval"),
         _unique_str("#define _SET_FLOAT_OBJECT_VALUE(obj, value) ((PyFloatObject *)obj)->ob_fval = value"),
+        _unique_str("#define _GET_EVAL_FRAME_FUNC(tstate) (tstate)->interp->eval_frame"),
+        _unique_str("#define _GET_HEAP_GET_ITEM(ht) (ht)->_spec_cache.getitem"),
+        _unique_str("#define _GET_HEAP_GET_ITEM_VERSION(ht) (ht)->_spec_cache.getitem_version"),
+        _unique_str("#define _SET_FRAME_LOCALSPLUS(frame, i, v) (frame)->localsplus[(i)] = (v)"),
         _unique_str("#define _CPYBOOSTER_Py_ID(NAME) &_Py_ID(NAME)"),
         _unique_str("#define _CPYBOOSTER_PyEval_BinaryOps(oparg, lhs, rhs) _PyEval_BinaryOps[(oparg)]((lhs), (rhs))"),
         _unique_str("#define _CPYBOOSTER_PyEval_ConversionFuncs(oparg, value) _PyEval_ConversionFuncs[(oparg)]((value))"),
@@ -3013,6 +3017,8 @@ _PyEval_BinaryOps = rffi.llexternal("_CPYBOOSTER_PyEval_BinaryOps", [rffi.INT, c
 _PyEval_ConversionFuncs = rffi.llexternal("_CPYBOOSTER_PyEval_ConversionFuncs", [rffi.INT, cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _PyCode_CODE = rffi.llexternal("_PyCode_CODE", [cpython.PyCodeObject_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _PyInterpreterFrame_LASTI = rffi.llexternal("_PyInterpreterFrame_LASTI", [cpython._PyInterpreterFrame_P], rffi.INT, **cpython._llextkws)
+_PyThreadState_HasStackSpace = rffi.llexternal("_PyThreadState_HasStackSpace", [cpython.PyThreadState_P, rffi.INT], lltype.Bool, **cpython._llextkws)
+_PyFrame_PushUnchecked = rffi.llexternal("_PyFrame_PushUnchecked", [cpython.PyThreadState_P, cpython.PyFunctionObject_P, rffi.INT], cpython._PyInterpreterFrame_P, **cpython._llextkws)
 _PyFrame_GetStackPointer = rffi.llexternal("_PyFrame_GetStackPointer", [cpython._PyInterpreterFrame_P], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _PyFrame_SetStackPointer = rffi.llexternal("_PyFrame_SetStackPointer", [cpython._PyInterpreterFrame_P, rffi.CArrayPtr(cpython.PyObject_P)], lltype.Void, **cpython._llextkws)
 _PyFrame_GetCode = rffi.llexternal("_PyFrame_GetCode", [cpython._PyInterpreterFrame_P], cpython.PyCodeObject_P, **cpython._llextkws)
@@ -3078,6 +3084,7 @@ _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P,
 _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _INSTR_PTR_ADD = rffi.llexternal("_POINTER_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INSTR_PTR_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
+_INSTR_PTRS_SUB = rffi.llexternal("_POINTER_SUB", [cpython._Py_CODEUNIT_P, cpython._Py_CODEUNIT_P], cpython.Py_ssize_t, **cpython._llextkws)
 _INSTR_PTR_INPLACE_ADD = rffi.llexternal("_POINTER_INPLACE_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
 _GET_FRAME_INSTR_PTR = rffi.llexternal("_GET_FRAME_INSTR_PTR", [cpython._PyInterpreterFrame_P], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _GET_INSTR_PTR_OPCODE = rffi.llexternal("_GET_INSTR_PTR_OPCODE", [cpython._Py_CODEUNIT_P], rffi.UCHAR, **cpython._llextkws)
@@ -3085,6 +3092,10 @@ _GET_INSTR_PTR_OPARG = rffi.llexternal("_GET_INSTR_PTR_OPARG", [cpython._Py_CODE
 _GET_CODE_OBJECT_ORIGINAL_OPCODE = rffi.llexternal("_GET_CODE_OBJECT_ORIGINAL_OPCODE", [cpython.PyCodeObject_P, cpython._Py_CODEUNIT_P], rffi.INT, **cpython._llextkws)
 _GET_FLOAT_OBJECT_VALUE = rffi.llexternal("_GET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P], lltype.Float, **cpython._llextkws)
 _SET_FLOAT_OBJECT_VALUE = rffi.llexternal("_SET_FLOAT_OBJECT_VALUE", [cpython.PyObject_P, lltype.Float], lltype.Void, **cpython._llextkws)
+_GET_EVAL_FRAME_FUNC = rffi.llexternal("_GET_EVAL_FRAME_FUNC", [cpython.PyThreadState_P], cpython._PyFrameEvalFunction, **cpython._llextkws)
+_GET_HEAP_GET_ITEM = rffi.llexternal("_GET_HEAP_GET_ITEM", [cpython.PyHeapTypeObject_P], cpython.PyObject_P, **cpython._llextkws)
+_GET_HEAP_GET_ITEM_VERSION = rffi.llexternal("_GET_HEAP_GET_ITEM_VERSION", [cpython.PyHeapTypeObject_P], rffi.UINT, **cpython._llextkws)
+_SET_FRAME_LOCALSPLUS = rffi.llexternal("_SET_FRAME_LOCALSPLUS", [cpython._PyInterpreterFrame_P, rffi.INT, cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 _ADVANCE_ADAPTIVE_COUNTER = rffi.llexternal("_ADVANCE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _GET_LOCAL_AS_ARRAY = rffi.llexternal("_GET_LOCAL_AS_ARRAY", [cpython._PyInterpreterFrame_P, rffi.INT], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
@@ -3207,6 +3218,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_DICT):
         return _target_binary_subscr_dict(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_GETITEM):
+        return _target_binary_subscr_getitem(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3844,6 +3857,44 @@ def _target_binary_subscr_dict(tstate, frame, entry_frame, opcode, oparg, next_i
     STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_subscr_getitem(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    this_instr = next_instr
+    next_instr = _INSTR_PTR_ADD(next_instr, r_int32(2))
+    sub = lltype.nullptr(cpython.PyObject)
+    container = lltype.nullptr(cpython.PyObject)
+    sub = TOP(stack_pointer)
+    container = SECOND(stack_pointer)
+    if llop.ptr_nonzero(lltype.Bool, _GET_EVAL_FRAME_FUNC(tstate)):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    tp = cpython.Py_TYPE(container)
+    if not cpython.PyType_HasFeature(tp, cpython.Py_TPFLAGS_HEAPTYPE):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    ht = rffi.cast(cpython.PyHeapTypeObject_P, tp)
+    cached = _GET_HEAP_GET_ITEM(ht)
+    if llop.ptr_iszero(lltype.Bool, cached):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    getitem = rffi.cast(cpython.PyFunctionObject_P, cached)
+    cached_version = _GET_HEAP_GET_ITEM_VERSION(ht)
+    if llop.int_ne(lltype.Bool, getitem.c_func_version, cached_version):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    code = rffi.cast(cpython.PyCodeObject_P, getitem.c_func_code)
+    if not _PyThreadState_HasStackSpace(tstate, code.c_co_framesize):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    cpython.Py_INCREF(cached)
+    new_frame = _PyFrame_PushUnchecked(tstate, getitem, r_int32(2))
+    STACK_SHRINK(stack_pointer, r_int32(2))
+    _SET_FRAME_LOCALSPLUS(new_frame, r_int32(0), container)
+    _SET_FRAME_LOCALSPLUS(new_frame, r_int32(1), sub)
+    frame.c_return_offset = rffi.cast(rffi.USHORT, _INSTR_PTRS_SUB(next_instr, this_instr))
+    _PyFrame_SetStackPointer(frame, stack_pointer)
+    new_frame.c_previous = frame
+    tstate.c_current_frame = new_frame
+    frame = new_frame
+    return _start_frame(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline

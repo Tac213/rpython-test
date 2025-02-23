@@ -507,6 +507,48 @@ config = rffi_platform.configure(_CPyModuleObjectConfig)
 PyModuleDef = config["PyModuleDef"]
 PyModuleDef_P = lltype.Ptr(PyModuleDef)
 
+
+class _CPyFunctionObjectConfig:
+    """
+    cpython/funcobject.h
+    """
+    _compilation_info_ = _ECI
+
+    PyFunctionObject = rffi_platform.Struct(
+        "PyFunctionObject",
+        [
+            ("func_globals", PyObject_P),
+            ("func_builtins", PyObject_P),
+            ("func_name", PyObject_P),
+            ("func_qualname", PyObject_P),
+            ("func_code", PyObject_P),
+            ("func_defaults", PyObject_P),
+            ("func_kwdefaults", PyObject_P),
+            ("func_closure", PyObject_P),
+            ("func_doc", PyObject_P),
+            ("func_dict", PyObject_P),
+            ("func_weakreflist", PyObject_P),
+            ("func_module", PyObject_P),
+            ("func_version", rffi.UINT),
+        ]
+    )
+    PyHeapTypeObject = rffi_platform.Struct(
+        "PyHeapTypeObject",
+        [
+            ("ht_name", PyObject_P),
+            ("ht_slots", PyObject_P),
+            ("ht_qualname", PyObject_P),
+            ("ht_module", PyObject_P),
+        ]
+    )
+
+
+config = rffi_platform.configure(_CPyFunctionObjectConfig)
+PyFunctionObject = config["PyFunctionObject"]
+PyFunctionObject_P = lltype.Ptr(PyFunctionObject)
+PyHeapTypeObject = config["PyHeapTypeObject"]
+PyHeapTypeObject_P = lltype.Ptr(PyHeapTypeObject)
+
 # objimpl.h
 PyObject_Malloc = rffi.llexternal("PyObject_Malloc", [rffi.SIZE_T], rffi.VOIDP, **_llextkws)
 PyObject_Realloc = rffi.llexternal("PyObject_Realloc", [rffi.VOIDP, rffi.SIZE_T], rffi.VOIDP, **_llextkws)
@@ -830,6 +872,9 @@ PyInterpreterState_Get = rffi.llexternal("PyInterpreterState_Get", [], PyInterpr
 _PyInterpreterState_SetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_SetEvalFrameFunc", [PyInterpreterState_P, _PyFrameEvalFunction], lltype.Void, **_llextkws)
 _PyInterpreterState_GetEvalFrameFunc = rffi.llexternal("_PyInterpreterState_GetEvalFrameFunc", [PyInterpreterState_P], _PyFrameEvalFunction, **_llextkws)
 
+# Functions in: object.h
+PyType_HasFeature = rffi.llexternal("PyType_HasFeature", [PyTypeObject_P, rffi.ULONG], lltype.Bool, **_llextkws)
+
 # Functions in: longobject.h
 PyLong_Check = rffi.llexternal("PyLong_Check", [PyObject_P], lltype.Bool, **_llextkws)
 PyLong_CheckExact = rffi.llexternal("PyLong_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
@@ -863,6 +908,7 @@ PySlice_New = rffi.llexternal("PySlice_New", [PyObject_P, PyObject_P, PyObject_P
 
 # Contants defined in object.h
 Py_None = rffi.CConstant("Py_None", PyObject_P)
+Py_TPFLAGS_HEAPTYPE = rffi.CConstant("Py_TPFLAGS_HEAPTYPE", rffi.ULONG)
 # Contants defined in boolobject.h
 Py_True = rffi.CConstant("Py_True", PyObject_P)
 Py_False = rffi.CConstant("Py_False", PyObject_P)
