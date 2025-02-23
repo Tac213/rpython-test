@@ -2901,6 +2901,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#define _SET_FRAME_LOCALSPLUS(frame, i, v) (frame)->localsplus[(i)] = (v)"),
         _unique_str("#define _GET_PY_SINGLETON_STRINGS_ASCII_LENGTH() Py_ARRAY_LENGTH(_Py_SINGLETON(strings).ascii)"),
         _unique_str("#define _GET_PY_SINGLETON_STRINGS_ASCII_CHAR(c) (PyObject*)&_Py_SINGLETON(strings).ascii[(c)]"),
+        _unique_str("#define _CPYBOOSTER_Py_STR(NAME) &_Py_STR(NAME)"),
         _unique_str("#define _CPYBOOSTER_Py_ID(NAME) &_Py_ID(NAME)"),
         _unique_str("#define _CPYBOOSTER_PyEval_BinaryOps(oparg, lhs, rhs) _PyEval_BinaryOps[(oparg)]((lhs), (rhs))"),
         _unique_str("#define _CPYBOOSTER_PyEval_ConversionFuncs(oparg, value) _PyEval_ConversionFuncs[(oparg)]((value))"),
@@ -3041,6 +3042,7 @@ _PyErr_Format_Constccharp = rffi.llexternal("_PyErr_Format", [cpython.PyThreadSt
 _PyErr_SetKeyError = rffi.llexternal("_PyErr_SetKeyError", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 _PyObject_CallNoArgs = rffi.llexternal("_PyObject_CallNoArgs", [cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _PyObject_LookupSpecial = rffi.llexternal("_PyObject_LookupSpecial", [cpython.PyObject_P, cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
+_Py_STR = rffi.llexternal("_CPYBOOSTER_Py_STR", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
 _Py_ID = rffi.llexternal("_CPYBOOSTER_Py_ID", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
 
 _Py_Specialize_BinaryOp = rffi.llexternal("_Py_Specialize_BinaryOp", [cpython.PyObject_P, cpython.PyObject_P, cpython._Py_CODEUNIT_P, rffi.INT, rffi.CArrayPtr(cpython.PyObject_P)], lltype.Void, **cpython._llextkws)
@@ -3057,6 +3059,7 @@ _PyLong_Subtract = rffi.llexternal("_PyLong_Subtract", [cpython.PyLongObject_P, 
 _PyLong_IsNonNegativeCompact = rffi.llexternal("_PyLong_IsNonNegativeCompact", [cpython.PyLongObject_P], lltype.Bool, **cpython._llextkws)
 
 _PyUnicode_ExactDealloc = rffi.llexternal("_PyUnicode_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
+_PyUnicode_JoinArray = rffi.llexternal("_PyUnicode_JoinArray", [cpython.PyObject_P, rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
 
 _PyList_FromArraySteal = rffi.llexternal("_PyList_FromArraySteal", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
 
@@ -3074,6 +3077,7 @@ monitor_unwind = rffi.llexternal("monitor_unwind", [cpython.PyThreadState_P, cpy
 monitor_handled = rffi.llexternal("monitor_handled", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P, cpython.PyObject_P], rffi.INT, **cpython._llextkws)
 monitor_throw = rffi.llexternal("monitor_throw", [cpython.PyThreadState_P, cpython._PyInterpreterFrame_P, cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 
+empty = rffi.CConstant("empty", rffi.CONST_CCHARP)
 __aenter__ = rffi.CConstant("__aenter__", rffi.CONST_CCHARP)
 __aexit__ = rffi.CConstant("__aexit__", rffi.CONST_CCHARP)
 __enter__ = rffi.CConstant("__enter__", rffi.CONST_CCHARP)
@@ -3249,6 +3253,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_set(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_SLICE):
         return _target_build_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_STRING):
+        return _target_build_string(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4125,6 +4131,26 @@ def _target_build_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, s
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, llop.int_add(rffi.INT, r_int32(2), index), slice)
     STACK_SHRINK(stack_pointer, llop.int_add(rffi.INT, r_int32(1), index))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_string(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    str = lltype.nullptr(cpython.PyObject)
+    pieces = _PYOBJECT_ADDRESS(PEEK(stack_pointer, oparg))
+    str = _PyUnicode_JoinArray(_Py_STR(empty), pieces, r_int64(oparg))
+    _i = llop.int_sub(rffi.INT, oparg, r_int32(1))
+    while llop.int_ge(lltype.Bool, _i, r_int32(0)):
+        cpython.Py_DECREF(pieces[_i])
+        _i = llop.int_sub(rffi.INT, _i, r_int32(1))
+    if llop.ptr_iszero(lltype.Bool, str):
+        STACK_SHRINK(stack_pointer, oparg)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, oparg, str)
+    STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
