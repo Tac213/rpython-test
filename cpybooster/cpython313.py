@@ -3247,6 +3247,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_SET):
         return _target_build_set(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_SLICE):
+        return _target_build_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4096,6 +4098,33 @@ def _target_build_set(tstate, frame, entry_frame, opcode, oparg, next_instr, sta
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, oparg, set)
     STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    step = lltype.nullptr(cpython.PyObject)
+    stop = lltype.nullptr(cpython.PyObject)
+    start = lltype.nullptr(cpython.PyObject)
+    slice = lltype.nullptr(cpython.PyObject)
+    index = r_int32(0)
+    if llop.int_eq(lltype.Bool, oparg, r_int32(3)):
+        index = r_int32(1)
+        step = PEEK(stack_pointer, index)
+    stop = PEEK(stack_pointer, llop.int_add(rffi.INT, r_int32(1), index))
+    start = PEEK(stack_pointer, llop.int_add(rffi.INT, r_int32(2), index))
+    slice = cpython.PySlice_New(start, stop, step)
+    cpython.Py_DECREF(start)
+    cpython.Py_DECREF(stop)
+    cpython.Py_XDECREF(step)
+    if llop.ptr_iszero(lltype.Bool, slice):
+        STACK_SHRINK(stack_pointer, llop.int_add(rffi.INT, r_int32(2), index))
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, llop.int_add(rffi.INT, r_int32(2), index), slice)
+    STACK_SHRINK(stack_pointer, llop.int_add(rffi.INT, r_int32(1), index))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
