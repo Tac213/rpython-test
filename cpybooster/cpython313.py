@@ -6,7 +6,7 @@ from __future__ import print_function, absolute_import, division
 import inspect
 
 from rpython.rlib.objectmodel import not_rpython, always_inline
-from rpython.rlib.rarithmetic import r_int32
+from rpython.rlib.rarithmetic import r_int32, r_int64
 from rpython.rtyper.debug import ll_assert, ll_assert_not_none
 from rpython.rtyper.lltypesystem import lltype, rffi
 from rpython.rtyper.lltypesystem.lloperation import llop
@@ -2862,6 +2862,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#include <internal/pycore_floatobject.h>"),
         _unique_str("#include <internal/pycore_long.h>"),
         _unique_str("#include <internal/pycore_unicodeobject.h>"),
+        _unique_str("#include <internal/pycore_dict.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
@@ -3056,6 +3057,8 @@ _PyLong_IsNonNegativeCompact = rffi.llexternal("_PyLong_IsNonNegativeCompact", [
 
 _PyUnicode_ExactDealloc = rffi.llexternal("_PyUnicode_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 
+_PyDict_FromItems = rffi.llexternal("_PyDict_FromItems", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
+
 read_u16_1 = rffi.llexternal("_CPYBOOSTER_read_u16_1", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_2 = rffi.llexternal("_CPYBOOSTER_read_u16_2", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_3 = rffi.llexternal("_CPYBOOSTER_read_u16_3", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
@@ -3233,6 +3236,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_subscr_str_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_TUPLE_INT):
         return _target_binary_subscr_tuple_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_CONST_KEY_MAP):
+        return _target_build_const_key_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3998,6 +4003,29 @@ def _target_binary_subscr_tuple_int(tstate, frame, entry_frame, opcode, oparg, n
     cpython.Py_DECREF(tuple)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_const_key_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    keys = lltype.nullptr(cpython.PyObject)
+    map = lltype.nullptr(cpython.PyObject)
+    keys = TOP(stack_pointer)
+    values = _PYOBJECT_ADDRESS(PEEK(stack_pointer, llop.int_add(rffi.INT, r_int32(1), oparg)))
+    map = _PyDict_FromItems(_PYOBJECT_ADDRESS(cpython.PyTuple_GET_ITEM(keys, 0)), 1, values, 1, r_int64(oparg))
+    _i = llop.int_sub(rffi.INT, oparg, r_int32(1))
+    while llop.int_ge(lltype.Bool, _i, r_int32(0)):
+        cpython.Py_DECREF(values[_i])
+        _i = llop.int_sub(rffi.INT, _i, r_int32(1))
+    cpython.Py_DECREF(keys)
+    if llop.ptr_iszero(lltype.Bool, map):
+        STACK_SHRINK(stack_pointer, llop.int_add(rffi.INT, r_int32(1), oparg))
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, llop.int_add(rffi.INT, r_int32(1), oparg), map)
+    STACK_SHRINK(stack_pointer, oparg)
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
