@@ -892,6 +892,27 @@ PyUnicode_CheckExact = rffi.llexternal("PyUnicode_CheckExact", [PyObject_P], llt
 PyUnicode_Concat = rffi.llexternal("PyUnicode_Concat", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 PyUnicode_Append = rffi.llexternal("PyUnicode_Append", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
 
+# Functions in listobject.h
+PyList_Check = rffi.llexternal("PyList_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyList_CheckExact = rffi.llexternal("PyList_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyList_New = rffi.llexternal("PyList_New", [Py_ssize_t], PyObject_P, **_llextkws)
+PyList_Size = rffi.llexternal("PyList_Size", [PyObject_P], Py_ssize_t, **_llextkws)
+PyList_GetItem = rffi.llexternal("PyList_GetItem", [PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyList_SetItem = rffi.llexternal("PyList_SetItem", [PyObject_P, Py_ssize_t, PyObject_P], rffi.INT, **_llextkws)
+PyList_Insert = rffi.llexternal("PyList_Insert", [PyObject_P, Py_ssize_t, PyObject_P], rffi.INT, **_llextkws)
+PyList_Append = rffi.llexternal("PyList_Append", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyList_GetSlice = rffi.llexternal("PyList_GetSlice", [PyObject_P, Py_ssize_t, Py_ssize_t], PyObject_P, **_llextkws)
+PyList_SetSlice = rffi.llexternal("PyList_SetSlice", [PyObject_P, Py_ssize_t, Py_ssize_t, PyObject_P], rffi.INT, **_llextkws)
+PyList_Sort = rffi.llexternal("PyList_Sort", [PyObject_P], rffi.INT, **_llextkws)
+PyList_Reverse = rffi.llexternal("PyList_Reverse", [PyObject_P], rffi.INT, **_llextkws)
+PyList_AsTuple = rffi.llexternal("PyList_AsTuple", [PyObject_P], PyObject_P, **_llextkws)
+# Functions in cpython/listobject.h
+PyList_GET_SIZE = rffi.llexternal("PyList_GET_SIZE", [PyObject_P], Py_ssize_t, **_llextkws)
+PyList_GET_ITEM = rffi.llexternal("PyList_GET_ITEM", [PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyList_SET_ITEM = rffi.llexternal("PyList_SET_ITEM", [PyObject_P, Py_ssize_t, PyObject_P], lltype.Void, **_llextkws)
+PyList_Extend = rffi.llexternal("PyList_Extend", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyList_Clear = rffi.llexternal("PyList_Clear", [PyObject_P], rffi.INT, **_llextkws)
+
 # Functions in dictobject.h
 PyDict_Check = rffi.llexternal("PyDict_Check", [PyObject_P], lltype.Bool, **_llextkws)
 PyDict_CheckExact = rffi.llexternal("PyDict_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
