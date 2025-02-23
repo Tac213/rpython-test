@@ -2864,6 +2864,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#include <internal/pycore_unicodeobject.h>"),
         _unique_str("#include <internal/pycore_list.h>"),
         _unique_str("#include <internal/pycore_dict.h>"),
+        _unique_str("#include <internal/pycore_tuple.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
         _unique_str("#endif"),
@@ -3065,6 +3066,8 @@ _PyList_FromArraySteal = rffi.llexternal("_PyList_FromArraySteal", [rffi.CArrayP
 
 _PyDict_FromItems = rffi.llexternal("_PyDict_FromItems", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
 
+_PyTuple_FromArraySteal = rffi.llexternal("_PyTuple_FromArraySteal", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
+
 read_u16_1 = rffi.llexternal("_CPYBOOSTER_read_u16_1", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_2 = rffi.llexternal("_CPYBOOSTER_read_u16_2", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
 read_u16_3 = rffi.llexternal("_CPYBOOSTER_read_u16_3", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
@@ -3255,6 +3258,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_STRING):
         return _target_build_string(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_TUPLE):
+        return _target_build_tuple(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4150,6 +4155,22 @@ def _target_build_string(tstate, frame, entry_frame, opcode, oparg, next_instr, 
         STACK_SHRINK(stack_pointer, oparg)
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, oparg, str)
+    STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_tuple(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    tup = lltype.nullptr(cpython.PyObject)
+    values = _PYOBJECT_ADDRESS(PEEK(stack_pointer, oparg))
+    tup = _PyTuple_FromArraySteal(values, r_int64(oparg))
+    if llop.ptr_iszero(lltype.Bool, tup):
+        STACK_SHRINK(stack_pointer, oparg)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, oparg, tup)
     STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
