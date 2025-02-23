@@ -3243,6 +3243,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_build_const_key_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_LIST):
         return _target_build_list(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_MAP):
+        return _target_build_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4047,6 +4049,26 @@ def _target_build_list(tstate, frame, entry_frame, opcode, oparg, next_instr, st
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, oparg, list)
     STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    map = lltype.nullptr(cpython.PyObject)
+    values = _PYOBJECT_ADDRESS(PEEK(stack_pointer, llop.int_mul(rffi.INT, r_int32(2), oparg)))
+    map = _PyDict_FromItems(values, 2, rffi.ptradd(values, 1), 2, r_int64(oparg))
+    _i = llop.int_sub(rffi.INT, llop.int_mul(rffi.INT, r_int32(2), oparg), r_int32(1))
+    while llop.int_ge(lltype.Bool, _i, r_int32(0)):
+        cpython.Py_DECREF(values[_i])
+        _i = llop.int_sub(rffi.INT, _i, r_int32(1))
+    if llop.ptr_iszero(lltype.Bool, map):
+        STACK_SHRINK(stack_pointer, llop.int_mul(rffi.INT, r_int32(2), oparg))
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, llop.int_mul(rffi.INT, r_int32(2), oparg), map)
+    STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, llop.int_mul(rffi.INT, r_int32(2), oparg), r_int32(1)))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
