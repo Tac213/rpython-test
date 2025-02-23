@@ -3231,6 +3231,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_subscr_list_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_STR_INT):
         return _target_binary_subscr_str_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_TUPLE_INT):
+        return _target_binary_subscr_tuple_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3927,7 +3929,7 @@ def _target_binary_subscr_list_int(tstate, frame, entry_frame, opcode, oparg, ne
     if not _PyLong_IsNonNegativeCompact(rffi.cast(cpython.PyLongObject_P, sub)):
         return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     index = _GET_LONG_OBJECT_VALUE(sub)
-    if llop.int_le(lltype.Bool, index, cpython.PyList_GET_SIZE(list)):
+    if llop.int_ge(lltype.Bool, index, cpython.PyList_GET_SIZE(list)):
         return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     res = cpython.PyList_GET_ITEM(list, index)
     cpython.Py_INCREF(res)
@@ -3964,6 +3966,36 @@ def _target_binary_subscr_str_int(tstate, frame, entry_frame, opcode, oparg, nex
     res = _GET_PY_SINGLETON_STRINGS_ASCII_CHAR(c)
     _Py_DECREF_SPECIALIZED(sub, rffi.cast(cpython.destructor, cpython.PyObject_Free))
     cpython.Py_DECREF(str)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_binary_subscr_tuple_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    sub = lltype.nullptr(cpython.PyObject)
+    tuple = lltype.nullptr(cpython.PyObject)
+    res = lltype.nullptr(cpython.PyObject)
+    # Skip 1 cache entry
+    sub = TOP(stack_pointer)
+    tuple = SECOND(stack_pointer)
+    if not cpython.PyLong_CheckExact(sub):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    if not cpython.PyTuple_CheckExact(tuple):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    # Deopt unless 0 <= sub < PyTuple_Size(list)
+    if not _PyLong_IsNonNegativeCompact(rffi.cast(cpython.PyLongObject_P, sub)):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    index = _GET_LONG_OBJECT_VALUE(sub)
+    if llop.int_ge(lltype.Bool, index, cpython.PyTuple_GET_SIZE(tuple)):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    res = cpython.PyTuple_GET_ITEM(tuple, index)
+    cpython.Py_INCREF(res)
+    _Py_DECREF_SPECIALIZED(sub, rffi.cast(cpython.destructor, cpython.PyObject_Free))
+    cpython.Py_DECREF(tuple)
     SET_SECOND(stack_pointer, res)
     STACK_SHRINK(stack_pointer, r_int32(1))
     DISPATCH(next_instr, opcode, oparg)

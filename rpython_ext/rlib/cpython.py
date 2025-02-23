@@ -959,6 +959,19 @@ PyDict_DelItem = rffi.llexternal("PyDict_DelItem", [PyObject_P, PyObject_P], rff
 PyDict_Clear = rffi.llexternal("PyDict_Clear", [PyObject_P], lltype.Void, **_llextkws)
 PyDict_GetItemRef = rffi.llexternal("PyDict_GetItemRef", [PyObject_P, PyObject_P, rffi.CArrayPtr(PyObject_P)], rffi.INT, **_llextkws)
 
+# Functions in tupleobject.h
+PyTuple_Check = rffi.llexternal("PyTuple_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyTuple_CheckExact = rffi.llexternal("PyTuple_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyTuple_New = rffi.llexternal("PyTuple_New", [], PyObject_P, **_llextkws)
+PyTuple_Size = rffi.llexternal("PyTuple_Size", [PyObject_P], Py_ssize_t, **_llextkws)
+PyTuple_GetItem = rffi.llexternal("PyTuple_GetItem", [PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyTuple_SetItem = rffi.llexternal("PyTuple_SetItem", [PyObject_P, Py_ssize_t, PyObject_P], rffi.INT, **_llextkws)
+PyTuple_GetSlice = rffi.llexternal("PyTuple_GetSlice", [PyObject_P, Py_ssize_t, Py_ssize_t], PyObject_P, **_llextkws)
+# Functions in cpython/tupleobject.h
+PyTuple_GET_SIZE = rffi.llexternal("PyTuple_GET_SIZE", [PyObject_P], Py_ssize_t, **_llextkws)
+PyTuple_GET_ITEM = rffi.llexternal("PyTuple_GET_ITEM", [PyObject_P, Py_ssize_t], PyObject_P, **_llextkws)
+PyTuple_SET_ITEM = rffi.llexternal("PyTuple_SET_ITEM", [PyObject_P, Py_ssize_t, PyObject_P], lltype.Void, **_llextkws)
+
 # Functions in sliceobject.h
 PySlice_New = rffi.llexternal("PySlice_New", [PyObject_P, PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 
