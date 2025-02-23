@@ -3027,6 +3027,7 @@ _PyErr_SetString = rffi.llexternal("_PyErr_SetString", [cpython.PyThreadState_P,
 _PyErr_GetRaisedException = rffi.llexternal("_PyErr_GetRaisedException", [cpython.PyThreadState_P], cpython.PyObject_P, **cpython._llextkws)
 _PyErr_Format_PyObject_Int_Uchar = rffi.llexternal("_PyErr_Format", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP, cpython.PyObject_P, rffi.INT, rffi.UCHAR], cpython.PyObject_P, **cpython._llextkws)
 _PyErr_Format_Constccharp = rffi.llexternal("_PyErr_Format", [cpython.PyThreadState_P, cpython.PyObject_P, rffi.CONST_CCHARP, rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
+_PyErr_SetKeyError = rffi.llexternal("_PyErr_SetKeyError", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 _PyObject_CallNoArgs = rffi.llexternal("_PyObject_CallNoArgs", [cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _PyObject_LookupSpecial = rffi.llexternal("_PyObject_LookupSpecial", [cpython.PyObject_P, cpython.PyObject_P], cpython.PyObject_P, **cpython._llextkws)
 _Py_ID = rffi.llexternal("_CPYBOOSTER_Py_ID", [rffi.CONST_CCHARP], cpython.PyObject_P, **cpython._llextkws)
@@ -3072,6 +3073,7 @@ _STR_NO_EXIT = rffi.CConstant("_STR_NO_EXIT", rffi.CONST_CCHARP)
 _INT_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.INT, **cpython._llextkws)
 _UINT8_DECLARE = rffi.llexternal("_INT_DECLARE", [], rffi.UCHAR, **cpython._llextkws)
 _INT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [rffi.INT], rffi.INT_realP, **cpython._llextkws)
+_INIT_PYOBJECT = rffi.llexternal("_INIT_NULL_PTR", [], cpython.PyObject_P, **cpython._llextkws)
 _INIT_NEXT_INSTR = rffi.llexternal("_INIT_NULL_PTR", [], cpython._Py_CODEUNIT_P, **cpython._llextkws)
 _INIT_STACK_POINTER = rffi.llexternal("_INIT_NULL_PTR", [], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _INSTR_PTR_ADD = rffi.llexternal("_POINTER_ADD", [cpython._Py_CODEUNIT_P, rffi.INT], cpython._Py_CODEUNIT_P, **cpython._llextkws)
@@ -3086,6 +3088,7 @@ _SET_FLOAT_OBJECT_VALUE = rffi.llexternal("_SET_FLOAT_OBJECT_VALUE", [cpython.Py
 _ADVANCE_ADAPTIVE_COUNTER = rffi.llexternal("_ADVANCE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _PAUSE_ADAPTIVE_COUNTER = rffi.llexternal("_PAUSE_ADAPTIVE_COUNTER", [cpython._Py_CODEUNIT_P], lltype.Void, **cpython._llextkws)
 _GET_LOCAL_AS_ARRAY = rffi.llexternal("_GET_LOCAL_AS_ARRAY", [cpython._PyInterpreterFrame_P, rffi.INT], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
+_PYOBJECT_ADDRESS = rffi.llexternal("_INT_ADDRESS", [cpython.PyObject_P], rffi.CArrayPtr(cpython.PyObject_P), **cpython._llextkws)
 _DEREF_LOCAL_ARRAY = rffi.llexternal("_DEREFERENCE", [rffi.CArrayPtr(cpython.PyObject_P)], cpython.PyObject_P, **cpython._llextkws)
 
 JUMPBY = rffi.llexternal("JUMPBY", [cpython._Py_CODEUNIT_P, rffi.INT], lltype.Void, **cpython._llextkws)
@@ -3202,6 +3205,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_slice(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR):
         return _target_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BINARY_SUBSCR_DICT):
+        return _target_binary_subscr_dict(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -3814,6 +3819,31 @@ def _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_ins
     container = SECOND(stack_pointer)
     # _BIANRY_SUBSCR
     return _specialized_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer, this_instr, container, sub)
+
+
+@always_inline
+def _target_binary_subscr_dict(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(2))
+    sub = lltype.nullptr(cpython.PyObject)
+    dict = lltype.nullptr(cpython.PyObject)
+    res = _INIT_PYOBJECT()
+    # Skip 1 cache entry
+    sub = TOP(stack_pointer)
+    dict = SECOND(stack_pointer)
+    if not cpython.PyDict_CheckExact(dict):
+        return _predicted_binary_subscr(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    rc = cpython.PyDict_GetItemRef(dict, sub, _PYOBJECT_ADDRESS(res))
+    if llop.int_eq(lltype.Bool, rc, 0):
+        _PyErr_SetKeyError(sub)
+    cpython.Py_DECREF(dict)
+    cpython.Py_DECREF(sub)
+    if llop.int_le(lltype.Bool, rc, 0):
+        return _pop_2_error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    SET_SECOND(stack_pointer, res)
+    STACK_SHRINK(stack_pointer, r_int32(1))
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
 
 @always_inline

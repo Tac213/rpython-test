@@ -847,6 +847,17 @@ PyUnicode_CheckExact = rffi.llexternal("PyUnicode_CheckExact", [PyObject_P], llt
 PyUnicode_Concat = rffi.llexternal("PyUnicode_Concat", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 PyUnicode_Append = rffi.llexternal("PyUnicode_Append", [rffi.CArrayPtr(PyObject_P), PyObject_P], lltype.Void, **_llextkws)
 
+# Functions in dictobject.h
+PyDict_Check = rffi.llexternal("PyDict_Check", [PyObject_P], lltype.Bool, **_llextkws)
+PyDict_CheckExact = rffi.llexternal("PyDict_CheckExact", [PyObject_P], lltype.Bool, **_llextkws)
+PyDict_New = rffi.llexternal("PyDict_New", [], PyObject_P, **_llextkws)
+PyDict_GetItem = rffi.llexternal("PyDict_GetItem", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyDict_GetItemWithError = rffi.llexternal("PyDict_GetItemWithError", [PyObject_P, PyObject_P], PyObject_P, **_llextkws)
+PyDict_SetItem = rffi.llexternal("PyDict_SetItem", [PyObject_P, PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyDict_DelItem = rffi.llexternal("PyDict_DelItem", [PyObject_P, PyObject_P], rffi.INT, **_llextkws)
+PyDict_Clear = rffi.llexternal("PyDict_Clear", [PyObject_P], lltype.Void, **_llextkws)
+PyDict_GetItemRef = rffi.llexternal("PyDict_GetItemRef", [PyObject_P, PyObject_P, rffi.CArrayPtr(PyObject_P)], rffi.INT, **_llextkws)
+
 # Functions in sliceobject.h
 PySlice_New = rffi.llexternal("PySlice_New", [PyObject_P, PyObject_P, PyObject_P], PyObject_P, **_llextkws)
 
