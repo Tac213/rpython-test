@@ -2862,6 +2862,7 @@ GLOBAL_ECI = ExternalCompilationInfo(
         _unique_str("#include <internal/pycore_floatobject.h>"),
         _unique_str("#include <internal/pycore_long.h>"),
         _unique_str("#include <internal/pycore_unicodeobject.h>"),
+        _unique_str("#include <internal/pycore_list.h>"),
         _unique_str("#include <internal/pycore_dict.h>"),
         _unique_str("#ifdef Py_BUILD_CORE"),
         _unique_str("#undef Py_BUILD_CORE"),
@@ -3057,6 +3058,8 @@ _PyLong_IsNonNegativeCompact = rffi.llexternal("_PyLong_IsNonNegativeCompact", [
 
 _PyUnicode_ExactDealloc = rffi.llexternal("_PyUnicode_ExactDealloc", [cpython.PyObject_P], lltype.Void, **cpython._llextkws)
 
+_PyList_FromArraySteal = rffi.llexternal("_PyList_FromArraySteal", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
+
 _PyDict_FromItems = rffi.llexternal("_PyDict_FromItems", [rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, rffi.CArrayPtr(cpython.PyObject_P), cpython.Py_ssize_t, cpython.Py_ssize_t], cpython.PyObject_P, **cpython._llextkws)
 
 read_u16_1 = rffi.llexternal("_CPYBOOSTER_read_u16_1", [cpython._Py_CODEUNIT_P], rffi.USHORT, **cpython._llextkws)
@@ -3238,6 +3241,8 @@ def _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stac
         return _target_binary_subscr_tuple_int(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_CONST_KEY_MAP):
         return _target_build_const_key_map(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.BUILD_LIST):
+        return _target_build_list(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.INTERPRETER_EXIT):
         return _target_interpreter_exit(tstate, frame, entry_frame, next_instr, stack_pointer)
     elif llop.char_eq(lltype.Bool, opcode, cpython.opcode_ids.STORE_SLICE):
@@ -4026,6 +4031,22 @@ def _target_build_const_key_map(tstate, frame, entry_frame, opcode, oparg, next_
         return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
     POKE(stack_pointer, llop.int_add(rffi.INT, r_int32(1), oparg), map)
     STACK_SHRINK(stack_pointer, oparg)
+    DISPATCH(next_instr, opcode, oparg)
+    return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+
+
+@always_inline
+def _target_build_list(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer):
+    frame.c_instr_ptr = next_instr
+    _INSTR_PTR_INPLACE_ADD(next_instr, r_int32(1))
+    list = lltype.nullptr(cpython.PyObject)
+    values = _PYOBJECT_ADDRESS(PEEK(stack_pointer, oparg))
+    list = _PyList_FromArraySteal(values, r_int64(oparg))
+    if llop.ptr_iszero(lltype.Bool, list):
+        STACK_SHRINK(stack_pointer, oparg)
+        return _error(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
+    POKE(stack_pointer, oparg, list)
+    STACK_SHRINK(stack_pointer, llop.int_sub(rffi.INT, oparg, r_int32(1)))
     DISPATCH(next_instr, opcode, oparg)
     return _dispatch_opcode(tstate, frame, entry_frame, opcode, oparg, next_instr, stack_pointer)
 
